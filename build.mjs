@@ -1,5 +1,6 @@
 import { build } from 'esbuild';
 import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 const pages = process.argv.includes('--pages');
 const out = pages ? 'dist' : 'public';
 await mkdir(out, { recursive: true });
@@ -27,3 +28,12 @@ for (const name of packages) {
 }
 licenses.push(await readFile(`${out}/app.js.LEGAL.txt`, 'utf8').catch(() => ''));
 await writeFile(`${out}/licenses.txt`, licenses.join('\n\n--------------------\n\n'));
+if (pages) {
+  // Pages caches assets. Version references so a refreshed HTML document cannot run an older script.
+  let html = await readFile(`${out}/index.html`, 'utf8');
+  for (const file of ['app.js', 'style.css', 'theme.js']) {
+    const version = createHash('sha256').update(await readFile(`${out}/${file}`)).digest('hex').slice(0, 16);
+    html = html.replace(`"./${file}"`, `"./${file}?v=${version}"`);
+  }
+  await writeFile(`${out}/index.html`, html);
+}
