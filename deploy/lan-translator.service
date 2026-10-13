@@ -1,0 +1,28 @@
+[Unit]
+Description=LAN Translator (browser-local Markdown translation)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/apps/lan-translator/current
+ExecStart=/usr/bin/node server.mjs
+Environment=HOST=0.0.0.0
+Environment=PORT=8765
+Environment=LOCALAI_URL=http://127.0.0.1:8080/v1
+Environment=LOCALAI_MODEL=qwen3.8-flash-next-strata
+LoadCredential=localai-key:%h/.config/lan-translator/localai-key
+Restart=always
+RestartSec=5
+TimeoutStopSec=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="中英翻译工作台，支持魔搭、Groq 等模型。文件处理在浏览器中完成，API Key 由用户自己填写。">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>译间 · 中英翻译</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <script src="./theme.js"></script>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="译间首页"><span class="brand-mark" aria-hidden="true">译</span><span>译间<small>YOUR TRANSLATOR</small></span></a>
+      <div class="header-actions"><button id="themeToggle" class="icon-button theme-toggle" aria-label="切换夜间模式" title="切换夜间模式" aria-pressed="false"><svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></svg><svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg></button><button id="connection" class="connection" title="点击重新检查引擎连接"><span class="status-dot"></span><span id="connectionText">连接引擎中</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10M17 7 7 17"/></svg></button></div>
+    </header>
+    <main>
+      <section class="intro">
+        <div><p class="eyebrow">YOUR LANGUAGE WORKSPACE</p><h1>文字跨越语言，<span>格式保持原样。</span></h1><p class="subtitle">英文与中文，自然互译。也为你的 Markdown 留住结构。</p></div>
+        <div class="language-stamp" aria-hidden="true"><span>En</span><span class="stamp-line">↔</span><span>中</span></div>
+      </section>
+      <section class="workspace" aria-label="翻译工作台">
+        <div class="workspace-toolbar">
+          <div class="segmented mode-tabs" role="tablist" aria-label="内容类型">
+            <button id="textMode" class="selected" role="tab" aria-selected="true" data-mode="text"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 11h12M4 17h15"/></svg>纯文本</button>
+            <button id="markdownMode" role="tab" aria-selected="false" data-mode="markdown"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M5 15V9l3 3 3-3v6M17 9v6m-2-2 2 2 2-2"/></svg>Markdown</button>
+          </div>
+          <label class="direction-control"><span class="visually-hidden">翻译方向</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16m-4-4 4 4-4 4M20 16H4m4-4-4 4 4 4"/></svg><select id="direction"><option value="auto">自动检测语言</option><option value="en-zh">英文 → 中文</option><option value="zh-en">中文 → 英文</option></select></label>
+        </div>
+        <div class="document-bar" id="documentBar" hidden>
+          <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5"/></svg><span id="fileLabel">拖入 .md 文件，或直接粘贴 Markdown</span><span class="file-limit">最大 2 MB · UTF-8</span></div>
+          <button id="chooseFile" class="subtle-button">选择文件 <span aria-hidden="true">↗</span></button>
+          <input id="fileInput" type="file" accept=".md,.markdown,text/markdown,text/plain" hidden>
+        </div>
+        <div class="editor-grid" id="dropArea">
+          <section class="editor-pane source-pane" aria-label="原文">
+            <div class="pane-heading"><h2>原文 <span id="sourceLanguage">自动识别</span></h2><button id="clear" class="icon-button" title="清空原文" aria-label="清空原文"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7"/></svg></button></div>
+            <label for="source" class="visually-hidden">输入待翻译的文字</label>
+            <textarea id="source" spellcheck="false" placeholder="在这里写下或粘贴文字…&#10;&#10;Paste something here. We'll find the right direction." maxlength="2000000"></textarea>
+            <div class="source-footer"><button id="sample" class="sample-button">试一段示例 <span aria-hidden="true">↗</span></button><span id="characterCount">0 字符</span></div>
+          </section>
+          <section class="editor-pane result-pane" aria-label="译文">
+            <div class="pane-heading"><h2>译文 <span id="targetLanguage">等待原文</span></h2><div id="viewTabs" class="segmented view-tabs" role="tablist" aria-label="译文视图" hidden><button id="previewTab" class="selected" role="tab" aria-selected="true">预览</button><button id="sourceTab" role="tab" aria-selected="false">源码</button></div></div>
+            <div id="emptyResult" class="empty-result"><div class="empty-symbol" aria-hidden="true"><span>文</span><span>↗</span><span>A</span></div><p>好译文，从这里开始。</p><span>译文将在这里呈现</span></div>
+            <div id="rendered" class="markdown-body" tabindex="0" hidden></div>
+            <label for="result" class="visually-hidden">翻译结果</label><textarea id="result" spellcheck="false" readonly hidden></textarea>
+            <div class="result-footer"><span id="resultNote">忠于原意，自然表达</span><div class="output-actions"><button id="copy" class="subtle-button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg>复制</button><button id="download" class="subtle-button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span id="downloadText">下载</span></button></div></div>
+          </section>
+        </div>
+        <div class="action-bar">
+          <div class="engine-picker"><span class="engine-icon" aria-hidden="true">✳</span><div><label id="engineLabel" for="model">翻译引擎 · LocalAI</label><select id="model"><option value="qwen3.8-flash-next-strata">Qwen3.8 Flash Next</option></select></div><button id="settings" class="icon-button" aria-label="引擎设置" title="引擎设置 · 外部 API"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg></button></div>
+          <div class="translate-actions"><span class="shortcut">⌘ / Ctrl + Enter</span><button id="stop" class="stop-button" hidden>停止</button><button id="translate" class="primary-button" disabled><span id="translateText">开始翻译</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button></div>
+        </div>
+        <div class="progress-track" id="progressTrack" hidden><progress id="progress" value="0" max="100" aria-label="翻译进度"></progress></div>
+      </section>
+      <div class="status-row"><p id="status" role="status" aria-live="polite">准备就绪，输入文字即可开始。</p><span id="progressLabel"></span></div>
+      <aside class="privacy-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6zM8 12l3 3 5-6"/></svg><p><strong>文件留在你的浏览器。</strong> 读取、分段、预览与下载均在本地完成。<span id="privacyDestination">仅待译文本经局域网发送至 LocalAI</span>，本应用不保存原文、译文或文件。</p></aside>
+    </main>
+    <footer class="page-footer"><span>译间 <span class="footer-dot">·</span> 两种语言，一个工作台</span><span id="hostingNote">在你的局域网中运行</span></footer>
+  </div>
+  <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <div class="dialog-heading"><div><p class="eyebrow">TRANSLATION ENGINE</p><h2 id="settingsTitle">选择你的翻译引擎</h2></div><button id="closeSettings" class="icon-button" aria-label="关闭引擎设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+    <label class="form-field">服务商<select id="providerType"><option value="localai">LocalAI · 局域网默认</option><option value="modelscope">魔搭 ModelScope · Qwen3.8 Flash Next</option><option value="groq">Groq · GPT-OSS 120B</option><option value="deepseek">DeepSeek</option><option value="zai">Z.ai</option><option value="zhipu">智谱 BigModel</option><option value="custom">自定义 · OpenAI 兼容接口</option></select></label>
+    <p id="localSettingsNote" class="settings-note">使用此局域网服务配置的 LocalAI，默认模型为 Qwen3.8 Flash Next。无需填写个人 API Key。</p>
+    <div id="externalFields" hidden>
+      <label class="form-field">API 地址<input id="externalUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://api.example.com/v1"><small>预设地址固定；自定义接口可填写 HTTPS 基础地址，末尾无需添加 /chat/completions。</small></label>
+      <label class="form-field">模型 ID<input id="externalModel" type="text" autocomplete="off" spellcheck="false" placeholder="输入你的账户可用的模型 ID" list="modelSuggestions"><datalist id="modelSuggestions"></datalist></label>
+      <label class="form-field">API Key<div class="key-field"><input id="externalKey" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴你自己的 API Key" autocapitalize="off" data-lpignore="true"><button id="showKey" class="subtle-button" type="button">显示</button></div></label>
+      <div class="key-options"><label><input id="rememberKey" type="checkbox"> 记住到此浏览器</label><a id="getKey" target="_blank" rel="noopener noreferrer" hidden>获取 API Key ↗</a></div>
+      <p class="settings-note">默认刷新即清除密钥。勾选后仅保存在此浏览器的本站存储中，可随时清除。请求由浏览器通过 HTTPS 直接发送至所选服务商；密钥不经过本应用服务器，不写入 GitHub，也不与其他用户共享。共享设备请勿勾选。</p>
+      <p class="settings-note">免费额度、模型权限与超额费用以服务商账户为准。接口需要支持浏览器跨域访问；网络或地区限制可能影响连接。</p>
+      <button id="clearKeys" class="subtle-button" type="button">清除本浏览器保存的全部密钥</button>
+      <div class="test-row"><button id="testProvider" class="secondary-button">测试接口</button><span>仅发送一句示例文字</span></div>
+    </div>
+    <p id="settingsStatus" class="settings-status" role="status" aria-live="polite"></p>
+    <div class="dialog-footer"><button id="cancelSettings" class="secondary-button">取消</button><button id="applySettings" class="primary-button">应用设置</button></div>
+  </dialog>
+  <div id="toast" role="status" hidden></div>
+</body>
+</html>
