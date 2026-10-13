@@ -258,6 +258,7 @@ function settingsFields() {
   $('settingsStatus').textContent = ''; $('settingsStatus').classList.remove('error');
   $('externalKey').type = 'password'; $('showKey').textContent = '显示';
   if (external) {
+    $('providerHint').hidden = type !== 'zai';
     const saved = providerConfig.type === type ? providerConfig : initialConfig(type);
     $('externalUrl').value = saved.baseUrl; $('externalModel').value = saved.model;
     $('externalKey').value = saved.apiKey || '';

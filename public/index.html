@@ -68,6 +68,7 @@
     <label class="form-field">服务商<select id="providerType"><option value="localai">LocalAI · 局域网默认</option><option value="modelscope">魔搭 ModelScope · Qwen3.8 Flash Next</option><option value="groq">Groq · GPT-OSS 120B</option><option value="deepseek">DeepSeek</option><option value="zai">Z.ai</option><option value="zhipu">智谱 BigModel</option><option value="custom">自定义 · OpenAI 兼容接口</option></select></label>
     <p id="localSettingsNote" class="settings-note">使用此局域网服务配置的 LocalAI，默认模型为 Qwen3.8 Flash Next。无需填写个人 API Key。</p>
     <div id="externalFields" hidden>
+      <p id="providerHint" class="settings-note" hidden>Z.ai 当前接口在本站测试中未允许浏览器跨域访问（CORS），可能无法直连。此情况更换密钥无效，请使用支持浏览器直连的服务商；本应用不会通过代理中转你的密钥。</p>
       <label class="form-field">API 地址<input id="externalUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://api.example.com/v1"><small>预设地址固定；自定义接口可填写 HTTPS 基础地址，末尾无需添加 /chat/completions。</small></label>
       <label class="form-field">模型 ID<input id="externalModel" type="text" autocomplete="off" spellcheck="false" placeholder="输入你的账户可用的模型 ID" list="modelSuggestions"><datalist id="modelSuggestions"></datalist></label>
       <label class="form-field">API Key<div class="key-field"><input id="externalKey" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴你自己的 API Key" autocapitalize="off" data-lpignore="true"><button id="showKey" class="subtle-button" type="button">显示</button></div></label>
