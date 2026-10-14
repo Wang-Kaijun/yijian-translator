@@ -258,7 +258,9 @@ function settingsFields() {
   $('settingsStatus').textContent = ''; $('settingsStatus').classList.remove('error');
   $('externalKey').type = 'password'; $('showKey').textContent = '显示';
   if (external) {
-    $('providerHint').hidden = type !== 'zai';
+    const hint = presets[type].hint || (type === 'zai' ? 'Z.ai 当前接口在本站测试中未允许浏览器跨域访问（CORS），可能无法直连。此情况更换密钥无效，请使用支持浏览器直连的服务商；本应用不会通过代理中转你的密钥。' : '');
+    $('providerHint').textContent = hint;
+    $('providerHint').hidden = !hint;
     const saved = providerConfig.type === type ? providerConfig : initialConfig(type);
     $('externalUrl').value = saved.baseUrl; $('externalModel').value = saved.model;
     $('externalKey').value = saved.apiKey || '';

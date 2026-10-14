@@ -2,9 +2,11 @@
 export const PROVIDERS = Object.freeze({
   modelscope: { name: '魔搭 ModelScope', baseUrl: 'https://api-inference.modelscope.cn/v1', model: 'Qwen/Qwen3.8-Flash-Next', models: ['Qwen/Qwen3.8-Flash-Next'], keyUrl: 'https://modelscope.cn/my/myaccesstoken' },
   groq: { name: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', models: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'], keyUrl: 'https://console.groq.com/keys' },
+  openrouter: { name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'qwen/qwen3.8-27b:free', models: ['qwen/qwen3.8-27b:free'], keyUrl: 'https://openrouter.ai/settings/keys', hint: '默认选择免费模型（:free）。免费接口有限流，模型可用性可能变化；修改为付费模型会按服务商规则计费。' },
+  siliconflow: { name: '硅基流动', baseUrl: 'https://api.siliconflow.cn/v1', model: 'XingChenAGI/Xing4.0-29B', models: ['XingChenAGI/Xing4.0-29B'], keyUrl: 'https://cloud.siliconflow.cn/me/account/ak', hint: '默认模型在 2026-10-15 官方价格页标注免费。需要完成平台要求的认证，具体限速及价格以模型页面为准。' },
   deepseek: { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com', model: 'deepseek-flash', models: ['deepseek-flash', 'deepseek-v4-pro'] },
   zai: { name: 'Z.ai', baseUrl: 'https://api.z.ai/api/paas/v4', model: 'glm-5.3', models: ['glm-5.3', 'glm-5.2', 'glm-5', 'glm-4.7'] },
-  zhipu: { name: '智谱', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5', models: ['glm-5', 'glm-4.7'] },
+  zhipu: { name: '智谱', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.7-flash', models: ['glm-4.7-flash'], keyUrl: 'https://bigmodel.cn/usercenter/proj-mgmt/apikeys', hint: '默认使用免费模型 GLM-4.7-Flash。已有浏览器保存的模型设置仍会保留，可手动改为 glm-4.7-flash。免费政策及并发限制以智谱平台为准。' },
   custom: { name: '自定义接口', baseUrl: '', model: '', models: [] },
 });
 
@@ -38,6 +40,7 @@ export function generationOptions(type, model) {
   if (type === 'localai') return { reasoning_effort: 'none', max_tokens: 8192 };
   if (type === 'groq') return { max_completion_tokens: 4096, ...(model.startsWith('openai/gpt-oss-') ? { reasoning_effort: 'low', include_reasoning: false } : {}) };
   if (type === 'modelscope') return { max_tokens: 8192, enable_thinking: false };
+  if (type === 'openrouter') return { max_tokens: 8192, reasoning: { enabled: false } };
   if (type === 'deepseek') return { thinking: { type: 'disabled' }, max_tokens: 8192 };
   if (type === 'zai' || type === 'zhipu') return /^glm-5\.3/i.test(model) ? { thinking: { type: 'enabled' }, reasoning_effort: 'low', max_tokens: 16384 } : { thinking: { type: 'disabled' }, max_tokens: 8192 };
   return { max_tokens: 8192 };

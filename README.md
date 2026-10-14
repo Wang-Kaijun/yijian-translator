@@ -15,10 +15,14 @@
 | --- | --- | --- |
 | 魔搭 ModelScope | `Qwen/Qwen3.8-Flash-Next` | `https://api-inference.modelscope.cn/v1` |
 | Groq | `openai/gpt-oss-120b` | `https://api.groq.com/openai/v1` |
+| OpenRouter | `qwen/qwen3.8-27b:free` | `https://openrouter.ai/api/v1` |
+| 硅基流动 | `XingChenAGI/Xing4.0-29B` | `https://api.siliconflow.cn/v1` |
 | DeepSeek | `deepseek-flash` | `https://api.deepseek.com` |
 | Z.ai | `glm-5.3` | `https://api.z.ai/api/paas/v4` |
-| 智谱 | `glm-5` | `https://open.bigmodel.cn/api/paas/v4` |
+| 智谱 | `glm-4.7-flash` | `https://open.bigmodel.cn/api/paas/v4` |
 | 自定义 | 自行填写 | 支持浏览器跨域访问的 HTTPS、OpenAI Chat Completions 兼容接口 |
+
+OpenRouter、硅基流动和智谱默认选择核对于 2026-10-15 的免费模型；免费模型仍有限流，政策以服务商为准。已有浏览器保存的模型设置不会自动覆盖，智谱老用户可将模型 ID 改为 `glm-4.7-flash`。
 
 预设模型 ID 可以修改。获取密钥：[魔搭](https://modelscope.cn/my/myaccesstoken)、[Groq](https://console.groq.com/keys)。免费额度、模型可用性、地区限制和超额费用由服务商决定，网页不提供共享密钥。
 
@@ -61,6 +65,8 @@ npm run publish:pages
 不需要模型密钥、GitHub Actions Secrets 或新增 workflow 授权。`main` 保存源码，`gh-pages` 仅保存网页构建产物；访问者的 API Key 不在两者中。
 
 2026-10-13 检查时，魔搭、Groq、DeepSeek 和智谱允许来自本 Pages 域名的标准跨域预检；魔搭与 Groq 另经正式网页的无效密钥鉴权请求验证。**Z.ai 当前没有返回允许浏览器跨域访问的响应头**，保留预设供接口支持后使用，并在设置中提示此限制。有效密钥下的翻译仍需使用用户自己的账户验证。若网页提示 CORS / 网络错误，请检查网络、地区限制或服务商政策；不要把密钥交给不明公共代理。
+
+2026-10-15 新增免费预设验证：OpenRouter、硅基流动、智谱的 GitHub Pages Origin 跨域预检均通过；本机预览网页使用明确无效的测试密钥，三家均返回可由浏览器读取的鉴权失败，证明浏览器请求到达接口。未提供有效密钥，尚未验证这三个模型实际生成译文，不将鉴权响应计为翻译成功。26 项自动测试通过，含新增服务商请求路由和本地密钥隔离。
 
 ## 局域网 LocalAI 版本
 

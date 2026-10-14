@@ -8,7 +8,7 @@ const response = () => Response.json({ choices: [{ message: { content: JSON.stri
 const request = type => ({ provider: { type, ...PROVIDERS[type], apiKey: 'test-only-secret-canary' }, model: PROVIDERS[type].model, target: 'zh', items, allowLocal: false });
 
 test('each external key goes only to its selected HTTPS endpoint in the authorization header', async () => {
-  for (const type of ['modelscope', 'groq']) {
+  for (const type of ['modelscope', 'groq', 'openrouter', 'siliconflow', 'zhipu']) {
     let calls = 0;
     const result = await translateWithProvider(request(type), async (url, options) => {
       calls++;

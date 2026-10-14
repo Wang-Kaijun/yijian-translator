@@ -65,7 +65,7 @@
   </div>
   <dialog id="settingsDialog" aria-labelledby="settingsTitle">
     <div class="dialog-heading"><div><p class="eyebrow">TRANSLATION ENGINE</p><h2 id="settingsTitle">选择你的翻译引擎</h2></div><button id="closeSettings" class="icon-button" aria-label="关闭引擎设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
-    <label class="form-field">服务商<select id="providerType"><option value="localai">LocalAI · 局域网默认</option><option value="modelscope">魔搭 ModelScope · Qwen3.8 Flash Next</option><option value="groq">Groq · GPT-OSS 120B</option><option value="deepseek">DeepSeek</option><option value="zai">Z.ai</option><option value="zhipu">智谱 BigModel</option><option value="custom">自定义 · OpenAI 兼容接口</option></select></label>
+    <label class="form-field">服务商<select id="providerType"><option value="localai">LocalAI · 局域网默认</option><option value="modelscope">魔搭 ModelScope · Qwen3.8 Flash Next</option><option value="groq">Groq · GPT-OSS 120B</option><option value="openrouter">OpenRouter · Qwen3.8 27B 免费版</option><option value="siliconflow">硅基流动 · Xing4.0-29B 免费版</option><option value="deepseek">DeepSeek</option><option value="zai">Z.ai</option><option value="zhipu">智谱 BigModel · GLM-4.7-Flash 免费版</option><option value="custom">自定义 · OpenAI 兼容接口</option></select></label>
     <p id="localSettingsNote" class="settings-note">使用此局域网服务配置的 LocalAI，默认模型为 Qwen3.8 Flash Next。无需填写个人 API Key。</p>
     <div id="externalFields" hidden>
       <p id="providerHint" class="settings-note" hidden>Z.ai 当前接口在本站测试中未允许浏览器跨域访问（CORS），可能无法直连。此情况更换密钥无效，请使用支持浏览器直连的服务商；本应用不会通过代理中转你的密钥。</p>

@@ -51,3 +51,17 @@ test('unavailable storage permits memory mode but never claims persistence succe
   store.save(config('groq'), false);
   assert.throws(() => store.save(config('groq'), true), /不允许保存/);
 });
+
+ test('new provider credentials stay isolated, persist only with opt-in, and clear together', () => {
+  const values = new Map();
+  const storage = { getItem: k => values.get(k) ?? null, setItem: (k,v) => values.set(k,v), removeItem: k => values.delete(k) };
+  const store = createCredentialStore(storage);
+  for (const type of ['openrouter', 'siliconflow', 'zhipu']) {
+    store.save(config(type), false);
+    assert.equal(createCredentialStore(storage).read(type), null);
+    store.save(config(type), true);
+    assert.equal(createCredentialStore(storage).read(type).apiKey, `test-only-${type}`);
+  }
+  store.clear();
+  assert.equal(values.size, 0);
+});
