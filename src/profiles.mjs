@@ -11,7 +11,7 @@ export function createProfiles(storage, path, defaultType) {
   for (const scope of scopes) {
     try {
       const saved = JSON.parse(storage?.getItem(bindingKey(scope)) || 'null');
-      if (sites.read(saved?.siteId) && typeof saved.model === 'string' && saved.model.length <= 200 && !/[\r\n]/.test(saved.model)) bindings[scope] = saved;
+      if (typeof saved?.siteId === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(saved.siteId) && typeof saved.model === 'string' && saved.model.length <= 200 && !/[\r\n]/.test(saved.model)) bindings[scope] = saved;
     } catch {}
   }
   const stores = Object.fromEntries(scopes.map(scope => [scope, createCredentialStore(storage, scope === 'global' ? path : `${path}:${scope}`)]));
@@ -66,7 +66,7 @@ export function createProfiles(storage, path, defaultType) {
   }
   const own = scope => {
     const binding = bindings[scope], site = binding && sites.read(binding.siteId);
-    return site ? { ...site, model: binding.model || site.model } : configs[scope];
+    return site ? { ...site, model: binding.model || site.model } : binding ? { type: 'custom', baseUrl: '', model: '', apiKey: '', label: '站点已删除，请重新选择' } : configs[scope];
   };
   return {
     sites,
