@@ -29,12 +29,42 @@ export function createProfiles(storage, path, defaultType) {
       try { configs[scope].model = storage?.getItem(`${key(scope)}:model`) || configs[scope].model; } catch {}
     }
   }
+  const overrides = {};
+  const overrideKey = scope => `yijian:global-override:${path}:${scope}`;
+  for (const scope of ['translation', 'writing']) {
+    let legacyGlobal = false;
+    try { legacyGlobal = Boolean(storage?.getItem(key('global'))); } catch {}
+    overrides[scope] = !configs[scope] && legacyGlobal;
+    try {
+      const saved = storage?.getItem(overrideKey(scope));
+      if (saved !== null && saved !== undefined) overrides[scope] = saved === 'true';
+      storage?.setItem(overrideKey(scope), String(overrides[scope]));
+    } catch {}
+  }
+  // Preserve each feature's configuration independently from its global override choice.
+  for (const scope of ['translation', 'writing']) {
+    if (!configs[scope]) {
+      configs[scope] = { ...configs.global };
+      try {
+        if (configs[scope].apiKey) stores[scope].save(configs[scope], Boolean(configs[scope].remember));
+        storage?.setItem(key(scope), configs[scope].type);
+        storage?.setItem(`${key(scope)}:config`, JSON.stringify({ type: configs[scope].type, baseUrl: configs[scope].baseUrl, model: configs[scope].model }));
+        if (configs[scope].type === 'localai') storage?.setItem(`${key(scope)}:model`, configs[scope].model);
+      } catch {}
+    }
+  }
   return {
     own: scope => configs[scope],
-    effective: scope => configs[scope] || configs.global,
+    effective: scope => overrides[scope] ? configs.global : configs[scope],
+    isOverridden: scope => Boolean(overrides[scope]),
+    setOverride(scope, value) {
+      if (!['translation', 'writing'].includes(scope)) throw new Error('只能为翻译或润色设置全局覆盖。');
+      overrides[scope] = Boolean(value);
+      try { storage?.setItem(overrideKey(scope), String(overrides[scope])); } catch {}
+    },
     initial,
     save(scope, config, remember = false) {
-      if (scope === 'global' && !config) throw new Error('全局默认需要选择模型。');
+      if (!config) throw new Error('请选择此功能使用的模型。');
       if (config && config.type !== 'localai') stores[scope].save(config, remember);
       configs[scope] = config ? { ...config, remember: Boolean(remember) } : null;
       try {
@@ -45,10 +75,10 @@ export function createProfiles(storage, path, defaultType) {
         } else storage?.removeItem(key(scope));
       } catch {}
     },
-    clearKeys() {
+    clearKeys(selectedScope) {
       // Clear every scope even if a storage operation fails for another one.
       let failure;
-      for (const scope of scopes) {
+      for (const scope of selectedScope ? [selectedScope] : scopes) {
         if (configs[scope]) configs[scope] = { ...configs[scope], apiKey: '', remember: false };
         try { stores[scope].clear(); } catch (error) { failure = error; }
       }

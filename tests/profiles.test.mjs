@@ -6,25 +6,54 @@ import { PROVIDERS } from '../providers.mjs';
 const storage = () => { const map = new Map(); return { getItem: key => map.get(key) || null, setItem: (key, value) => map.set(key, value), removeItem: key => map.delete(key) }; };
 const config = (model, apiKey = 'test-only-key') => ({ type: 'groq', baseUrl: PROVIDERS.groq.baseUrl, model, apiKey });
 
-test('existing global settings migrate and inherited features follow later changes', () => {
+test('legacy inherited settings preserve per-feature global choices', () => {
   const saved = storage(); saved.setItem('yijian:provider:/app/', 'groq');
   createCredentialStore(saved, '/app/').save(config('legacy'), true);
   const profiles = createProfiles(saved, '/app/', 'modelscope');
   assert.equal(profiles.effective('translation').model, 'legacy'); assert.equal(profiles.effective('writing').model, 'legacy');
   profiles.save('global', config('new'));
+  assert.equal(profiles.isOverridden('writing'), true); assert.equal(profiles.isOverridden('translation'), true);
   assert.equal(profiles.effective('writing').model, 'new'); assert.equal(profiles.effective('translation').model, 'new');
+  profiles.setOverride('writing', false);
+  assert.equal(profiles.effective('writing').model, 'legacy');
+  assert.equal(profiles.effective('translation').model, 'new');
+  assert.equal(createProfiles(saved, '/app/', 'modelscope').own('writing').model, 'legacy');
 });
 
-test('independent configurations isolate same-provider models and keys, and can return to global', () => {
+test('each feature independently selects global settings and restores its own model and key', () => {
   const saved = storage(), profiles = createProfiles(saved, '/', 'modelscope');
   profiles.save('global', config('global', 'global-test-key'), true);
   profiles.save('translation', config('translation', 'translation-test-key'), true);
   profiles.save('writing', config('writing', 'writing-test-key'), true);
   const restored = createProfiles(saved, '/', 'modelscope');
   for (const scope of ['global', 'translation', 'writing']) { assert.equal(restored.effective(scope).model, scope); assert.equal(restored.effective(scope).apiKey, `${scope}-test-key`); }
-  restored.save('writing', null);
+  restored.setOverride('writing', true);
   assert.equal(restored.effective('writing').model, 'global'); assert.equal(restored.effective('translation').model, 'translation');
-  assert.equal(createProfiles(saved, '/', 'modelscope').own('writing'), null);
+  assert.equal(createProfiles(saved, '/', 'modelscope').isOverridden('writing'), true);
+  assert.equal(createProfiles(saved, '/', 'modelscope').isOverridden('translation'), false);
+  restored.save('writing', config('changed-writing', 'changed-writing-key'), true);
+  assert.equal(restored.effective('writing').model, 'global');
+  restored.setOverride('writing', false);
+  assert.equal(restored.effective('writing').model, 'changed-writing'); assert.equal(restored.effective('translation').model, 'translation');
+  assert.equal(restored.effective('writing').apiKey, 'changed-writing-key');
+  assert.equal(createProfiles(saved, '/', 'modelscope').isOverridden('writing'), false);
+  restored.setOverride('translation', true);
+  assert.equal(restored.effective('translation').model, 'global');
+  assert.equal(restored.effective('writing').model, 'changed-writing');
+  restored.setOverride('writing', true);
+  assert.equal(restored.effective('writing').model, 'global');
+  assert.equal(restored.effective('translation').model, 'global');
+});
+
+test('clearing one feature does not clear another feature or global credentials', () => {
+  const saved = storage(), profiles = createProfiles(saved, '/', 'modelscope');
+  for (const scope of ['global', 'translation', 'writing']) profiles.save(scope, config(scope, scope + '-test-key'), true);
+  profiles.clearKeys('writing');
+  for (const current of [profiles, createProfiles(saved, '/', 'modelscope')]) {
+    assert.equal(current.own('writing').apiKey, '');
+    assert.equal(current.own('translation').apiKey, 'translation-test-key');
+    assert.equal(current.own('global').apiKey, 'global-test-key');
+  }
 });
 
 test('memory-only keys disappear on reload and clear removes all scope credentials', () => {

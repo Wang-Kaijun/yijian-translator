@@ -17,9 +17,15 @@
   <div class="shell">
     <header class="topbar">
       <a class="brand" href="./" aria-label="译间首页"><span class="brand-mark" aria-hidden="true">译</span><span>译间<small>YOUR TRANSLATOR</small></span></a>
-      <div class="header-actions"><button id="themeToggle" class="icon-button theme-toggle" aria-label="切换夜间模式" title="切换夜间模式" aria-pressed="false"><svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></svg><svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg></button><button id="connection" class="connection" title="点击重新检查引擎连接"><span class="status-dot"></span><span id="connectionText">连接引擎中</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10M17 7 7 17"/></svg></button></div>
+      <div class="header-actions"><button id="themeToggle" class="icon-button theme-toggle" aria-label="切换夜间模式" title="切换夜间模式" aria-pressed="false"><svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></svg><svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg></button></div>
     </header>
     <main>
+      <nav class="workspace-tabs" role="tablist" aria-label="工作台功能">
+        <button id="translationTab" role="tab" aria-selected="true" aria-controls="translationPanel" data-workspace="translation">中英翻译</button>
+        <button id="writingTab" role="tab" aria-selected="false" aria-controls="writingPanel" tabindex="-1" data-workspace="writing">语法与润色</button>
+        <button id="globalTab" role="tab" aria-selected="false" aria-controls="globalPanel" tabindex="-1" data-workspace="global">全局模型</button>
+      </nav>
+      <section id="translationPanel" role="tabpanel" aria-labelledby="translationTab">
       <section class="intro">
         <div><p class="eyebrow">YOUR LANGUAGE WORKSPACE</p><h1>文字跨越语言，<span>格式保持原样。</span></h1><p class="subtitle">英文与中文，自然互译。也为你的 Markdown 留住结构。</p></div>
         <div class="language-stamp" aria-hidden="true"><span>En</span><span class="stamp-line">↔</span><span>中</span></div>
@@ -53,12 +59,15 @@
           </section>
         </div>
         <div class="action-bar">
-          <div class="engine-picker"><span class="engine-icon" aria-hidden="true">✳</span><div><label id="engineLabel" for="model">翻译引擎 · LocalAI</label><select id="model"><option value="qwen3.8-flash-next-strata">Qwen3.8 Flash Next</option></select></div><button id="settings" class="icon-button" aria-label="引擎设置" title="引擎设置 · 外部 API"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg></button></div>
+          <button id="settings" class="model-picker" aria-label="设置翻译模型"><span class="engine-icon" aria-hidden="true">✳</span><span class="model-picker-text"><span id="engineLabel" class="model-picker-label">本功能模型</span><span id="modelName" class="model-picker-name">设置模型</span></span><span class="model-picker-action">设置 <span aria-hidden="true">↗</span></span></button>
           <div class="translate-actions"><span class="shortcut">⌘ / Ctrl + Enter</span><button id="stop" class="stop-button" hidden>停止</button><button id="translate" class="primary-button" disabled><span id="translateText">开始翻译</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button></div>
         </div>
         <div class="progress-track" id="progressTrack" hidden><progress id="progress" value="0" max="100" aria-label="翻译进度"></progress></div>
       </section>
       <div class="status-row"><p id="status" role="status" aria-live="polite">准备就绪，输入文字即可开始。</p><span id="progressLabel"></span></div>
+      <aside class="privacy-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6zM8 12l3 3 5-6"/></svg><p><strong>文件留在你的浏览器。</strong> 读取、分段、预览与下载均在本地完成。<span id="privacyDestination">仅待译文本经局域网发送至 LocalAI</span>，本应用不保存原文、译文或文件。</p></aside>
+      </section>
+      <section id="writingPanel" role="tabpanel" aria-labelledby="writingTab" hidden>
       <section class="writing-intro" aria-labelledby="writingTitle"><p class="eyebrow">REFINE YOUR ENGLISH</p><h2 id="writingTitle">让英文表达，更进一步。</h2><p>先检查语法，再考虑润色。中文解释每处问题，英文版本一键复制。</p></section>
       <section class="workspace writing-workspace" aria-label="英文语法与润色工作台">
         <div class="workspace-toolbar"><h2>英文语法与润色</h2><span class="writing-hint">保留原意 · 按需润色</span></div>
@@ -76,21 +85,36 @@
           </section>
         </div>
         <div class="action-bar">
-          <div class="writing-model"><span id="writingEngine"></span><button id="writingSettings" class="subtle-button">模型设置</button></div>
+          <button id="writingSettings" class="model-picker" aria-label="设置语法与润色模型"><span class="engine-icon" aria-hidden="true">✳</span><span class="model-picker-text"><span id="writingEngine" class="model-picker-label">本功能模型</span><span id="writingModelName" class="model-picker-name">设置模型</span></span><span class="model-picker-action">设置 <span aria-hidden="true">↗</span></span></button>
           <div class="translate-actions"><button id="stopWriting" class="stop-button" hidden>停止</button><button id="reviewWriting" class="primary-button" disabled>检查语法与润色</button></div>
         </div>
       </section>
       <div class="status-row"><p id="writingStatus" role="status" aria-live="polite">输入英文即可开始。AI 建议仅供参考，请结合语境判断。</p></div>
       <p id="writingDestination" class="writing-privacy"></p>
-      <aside class="privacy-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6zM8 12l3 3 5-6"/></svg><p><strong>文件留在你的浏览器。</strong> 读取、分段、预览与下载均在本地完成。<span id="privacyDestination">仅待译文本经局域网发送至 LocalAI</span>，本应用不保存原文、译文或文件。</p></aside>
+
+      </section>
+      <section id="globalPanel" role="tabpanel" aria-labelledby="globalTab" hidden>
+        <section class="writing-intro"><p class="eyebrow">YOUR SHARED MODEL</p><h2>全局模型</h2><p>在这里配置共用模型，由各功能分别决定是否使用。</p></section>
+        <div class="global-layout">
+          <div class="workspace global-settings" id="globalFormHost"></div>
+          <aside class="override-card">
+            <h2>各功能独立选择</h2>
+            <p>在翻译或润色的模型设置中，分别开启「使用全局模型」。关闭后，该功能恢复自己的模型配置。</p>
+            <p id="globalUsage" role="status"></p>
+          </aside>
+        </div>
+      </section>
     </main>
     <footer class="page-footer"><span>译间 <span class="footer-dot">·</span> 两种语言，一个工作台</span><span id="hostingNote">在你的局域网中运行</span></footer>
   </div>
   <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <div id="settingsForm">
     <div class="dialog-heading"><div><p class="eyebrow">MODEL SETTINGS</p><h2 id="settingsTitle">模型设置</h2></div><button id="closeSettings" class="icon-button" aria-label="关闭引擎设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
-    <label class="form-field">配置范围<select id="settingsScope"><option value="global">全局默认</option><option value="translation">中英翻译</option><option value="writing">语法与润色</option></select></label>
-    <label id="inheritRow" class="inherit-row" hidden><input id="inheritModel" type="checkbox"> 使用全局默认模型</label>
-    <p id="inheritNote" class="settings-note" hidden>本功能会跟随全局默认的服务商、模型和密钥。修改全局默认后自动生效。</p>
+    <div id="featureOverrideControl" class="feature-override">
+      <label class="override-heading" for="featureOverride"><span>使用全局模型</span><input id="featureOverride" type="checkbox" role="switch" aria-describedby="featureOverrideNote"></label>
+      <p id="featureOverrideNote" class="settings-note">只对当前功能生效；关闭后使用本功能的独立配置。</p>
+      <p id="effectiveGlobalSummary" class="settings-note" hidden></p>
+    </div>
     <div id="profileFields">
     <label class="form-field">服务商<select id="providerType"><option value="localai">LocalAI · 局域网默认</option><option value="modelscope">魔搭 ModelScope · Qwen3.8 Flash Next</option><option value="groq">Groq · GPT-OSS 120B</option><option value="openrouter">OpenRouter · Qwen3.8 27B 免费版</option><option value="siliconflow">硅基流动 · Xing4.0-29B 免费版</option><option value="deepseek">DeepSeek</option><option value="zai">Z.ai</option><option value="zhipu">智谱 BigModel · GLM-4.7-Flash 免费版</option><option value="custom">自定义 · OpenAI 兼容接口</option></select></label>
     <p id="localSettingsNote" class="settings-note">使用此局域网服务配置的 LocalAI，默认模型为 Qwen3.8 Flash Next。无需填写个人 API Key。</p>
@@ -109,6 +133,7 @@
     </div>
     <p id="settingsStatus" class="settings-status" role="status" aria-live="polite"></p>
     <div class="dialog-footer"><button id="cancelSettings" class="secondary-button">取消</button><button id="applySettings" class="primary-button">应用设置</button></div>
+    </div>
   </dialog>
   <div id="toast" role="status" hidden></div>
 </body>
