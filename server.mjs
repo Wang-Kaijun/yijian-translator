@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { translationPrompt, parseCompletion } from './prompts.mjs';
 import { generationOptions } from './providers.mjs';
 import { writingPrompt, validateWritingInput, parseWritingCompletion } from './writing.mjs';
+import { declaudishPrompt, parseDeclaudishOutput } from './declaudish.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const publicRoot = resolve(root, 'public');
@@ -29,7 +30,7 @@ const baseHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
   'X-Frame-Options': 'DENY',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: http:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
   'Cache-Control': 'no-store',
 };
@@ -80,7 +81,7 @@ function validateRequest(data, writing = false) {
 }
 
 const contentTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8' };
-const publicFiles = new Set(['/index.html', '/app.js', '/theme.js', '/style.css', '/favicon.svg', '/licenses.txt']);
+const publicFiles = new Set(['/index.html', '/app.js', '/theme.js', '/style.css', '/favicon.svg', '/licenses.txt', '/paw-bridge.py']);
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -92,7 +93,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { online: true, defaultModel, models, engine: 'LocalAI' });
       } catch { return json(res, 503, { online: false, defaultModel, models: [defaultModel], error: '暂时无法连接 LocalAI，请稍后重试' }); }
     }
-    if (url.pathname === '/api/translate' || url.pathname === '/api/test-provider' || url.pathname === '/api/review') {
+    if (url.pathname === '/api/translate' || url.pathname === '/api/test-provider' || url.pathname === '/api/review' || url.pathname === '/api/declaudish') {
       if (req.method !== 'POST') return json(res, 405, { error: '只支持 POST 请求' }, { Allow: 'POST' });
       if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return json(res, 403, { error: '拒绝跨站请求' });
       if (req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: '拒绝跨站请求' });
@@ -100,11 +101,12 @@ const server = http.createServer(async (req, res) => {
       const data = await body(req);
       const testing = url.pathname === '/api/test-provider';
       const writing = url.pathname === '/api/review';
+      const declaudish = url.pathname === '/api/declaudish';
       if (testing && data) { data.target = 'zh'; data.items = [{ id: 'test', text: 'Hello. Welcome to the translation workspace.' }]; }
       if (data && !models.includes(data.model)) {
         try { await modelList(); } catch { return json(res, 503, { error: '暂时无法获取 LocalAI 模型，请稍后重试' }); }
       }
-      try { validateRequest(data, writing); } catch (error) { return json(res, 400, { error: error.message }); }
+      try { validateRequest(data, writing || declaudish); } catch (error) { return json(res, 400, { error: error.message }); }
       if (active >= 2) return json(res, 429, { error: '翻译引擎正在处理其他请求，请稍候' }, { 'Retry-After': '4' });
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 180000);
@@ -112,8 +114,8 @@ const server = http.createServer(async (req, res) => {
       active++;
       try {
         const payload = { model: data.model, temperature: 0.15, ...generationOptions('localai', data.model), stream: false, messages: [
-          { role: 'system', content: writing ? writingPrompt : translationPrompt(data.target) },
-          { role: 'user', content: JSON.stringify(writing ? { text: data.text } : { items: data.items.map(({ id, text }) => ({ id, text })) }) },
+          { role: 'system', content: declaudish ? declaudishPrompt : writing ? writingPrompt : translationPrompt(data.target) },
+          { role: 'user', content: JSON.stringify(writing || declaudish ? { text: data.text } : { items: data.items.map(({ id, text }) => ({ id, text })) }) },
         ] };
         const response = await fetch(`${upstream}/chat/completions`, {
           method: 'POST',
@@ -130,6 +132,7 @@ const server = http.createServer(async (req, res) => {
         const completion = await response.json();
         const choice = completion?.choices?.[0];
         if (choice?.finish_reason === 'length') return json(res, 502, { error: '模型输出被截断，请重试当前分段' });
+        if (declaudish) return json(res, 200, { output: parseDeclaudishOutput(choice?.message?.content) });
         if (writing) return json(res, 200, { review: parseWritingCompletion(choice?.message?.content, data.text) });
         const translations = parseCompletion(choice?.message?.content, data.items);
         return json(res, 200, testing ? { ok: true, message: '接口可用，测试翻译已完成', sample: translations[0].text } : { translations });

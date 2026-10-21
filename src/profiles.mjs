@@ -1,8 +1,19 @@
 import { createCredentialStore } from './credentials.mjs';
 import { PROVIDERS, validateExternalProvider } from '../providers.mjs';
+import { createSiteLibrary } from './sites.mjs';
 
 export function createProfiles(storage, path, defaultType) {
-  const scopes = ['global', 'translation', 'writing'];
+  const scopes = ['global', 'translation', 'writing', 'declaudish'];
+  const features = scopes.filter(scope => scope !== 'global');
+  const sites = createSiteLibrary(storage, path);
+  const bindings = {};
+  const bindingKey = scope => `yijian:site-binding:${path}:${scope}`;
+  for (const scope of scopes) {
+    try {
+      const saved = JSON.parse(storage?.getItem(bindingKey(scope)) || 'null');
+      if (sites.read(saved?.siteId) && typeof saved.model === 'string' && saved.model.length <= 200 && !/[\r\n]/.test(saved.model)) bindings[scope] = saved;
+    } catch {}
+  }
   const stores = Object.fromEntries(scopes.map(scope => [scope, createCredentialStore(storage, scope === 'global' ? path : `${path}:${scope}`)]));
   const key = scope => scope === 'global' ? `yijian:provider:${path}` : `yijian:profile:${path}:${scope}`;
   const configs = {};
@@ -31,7 +42,7 @@ export function createProfiles(storage, path, defaultType) {
   }
   const overrides = {};
   const overrideKey = scope => `yijian:global-override:${path}:${scope}`;
-  for (const scope of ['translation', 'writing']) {
+  for (const scope of features) {
     let legacyGlobal = false;
     try { legacyGlobal = Boolean(storage?.getItem(key('global'))); } catch {}
     overrides[scope] = !configs[scope] && legacyGlobal;
@@ -42,7 +53,7 @@ export function createProfiles(storage, path, defaultType) {
     } catch {}
   }
   // Preserve each feature's configuration independently from its global override choice.
-  for (const scope of ['translation', 'writing']) {
+  for (const scope of features) {
     if (!configs[scope]) {
       configs[scope] = { ...configs.global };
       try {
@@ -53,12 +64,25 @@ export function createProfiles(storage, path, defaultType) {
       } catch {}
     }
   }
+  const own = scope => {
+    const binding = bindings[scope], site = binding && sites.read(binding.siteId);
+    return site ? { ...site, model: binding.model || site.model } : configs[scope];
+  };
   return {
-    own: scope => configs[scope],
-    effective: scope => overrides[scope] ? configs.global : configs[scope],
+    sites,
+    binding: scope => bindings[scope] ? { ...bindings[scope] } : null,
+    bind(scope, siteId, model) {
+      const site = sites.read(siteId);
+      if (!scopes.includes(scope) || !site) throw new Error('请先在全局模型中保存站点。');
+      if (typeof model !== 'string' || !model.trim() || model.length > 200 || /[\r\n]/.test(model)) throw new Error('请选择有效的模型。');
+      bindings[scope] = { siteId, model: model.trim() };
+      try { storage?.setItem(bindingKey(scope), JSON.stringify(bindings[scope])); } catch {}
+    },
+    own,
+    effective: scope => own(overrides[scope] ? 'global' : scope),
     isOverridden: scope => Boolean(overrides[scope]),
     setOverride(scope, value) {
-      if (!['translation', 'writing'].includes(scope)) throw new Error('只能为翻译或润色设置全局覆盖。');
+      if (!features.includes(scope)) throw new Error('只能为功能设置全局覆盖。');
       overrides[scope] = Boolean(value);
       try { storage?.setItem(overrideKey(scope), String(overrides[scope])); } catch {}
     },
@@ -66,6 +90,8 @@ export function createProfiles(storage, path, defaultType) {
     save(scope, config, remember = false) {
       if (!config) throw new Error('请选择此功能使用的模型。');
       if (config && config.type !== 'localai') stores[scope].save(config, remember);
+      delete bindings[scope];
+      try { storage?.removeItem(bindingKey(scope)); } catch {}
       configs[scope] = config ? { ...config, remember: Boolean(remember) } : null;
       try {
         if (config) {
@@ -78,6 +104,7 @@ export function createProfiles(storage, path, defaultType) {
     clearKeys(selectedScope) {
       // Clear every scope even if a storage operation fails for another one.
       let failure;
+      try { sites.clearKeys(selectedScope ? bindings[selectedScope]?.siteId || '__none__' : undefined); } catch (error) { failure = error; }
       for (const scope of selectedScope ? [selectedScope] : scopes) {
         if (configs[scope]) configs[scope] = { ...configs[scope], apiKey: '', remember: false };
         try { stores[scope].clear(); } catch (error) { failure = error; }

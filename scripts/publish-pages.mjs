@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 const run = (args, cwd = process.cwd()) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 const root = process.cwd();
 const remote = run(['remote', 'get-url', 'origin']);
-const allowed = new Set(['index.html', 'app.js', 'app.js.LEGAL.txt', 'theme.js', 'style.css', 'favicon.svg', 'licenses.txt', '.nojekyll']);
+const allowed = new Set(['index.html', 'app.js', 'app.js.LEGAL.txt', 'theme.js', 'style.css', 'favicon.svg', 'licenses.txt', '.nojekyll', 'paw-bridge.py']);
 const files = await readdir(resolve(root, 'dist'));
 if (files.some(name => !allowed.has(name)) || !files.includes('index.html') || !files.includes('app.js')) throw new Error('Unexpected or missing build files. Rebuild a clean dist directory before publishing.');
 if (!(await readFile('dist/index.html', 'utf8')).includes('GitHub Pages · 浏览器直连')) throw new Error('Run npm run build:pages before publishing.');

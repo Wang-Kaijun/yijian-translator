@@ -63,7 +63,7 @@ export function setupWriting({ getProvider, allowLocal, openSettings, configure 
     const text = $('writingSource').value;
     try { validateWritingInput(text); } catch (error) { status(error.message, true); return; }
     const provider = { ...getProvider() };
-    if (provider.type !== 'localai' && !provider.apiKey) { openSettings('writing'); status('请先填写当前使用模型的 API Key。', true); return; }
+    if (!['localai', 'local'].includes(provider.type) && !provider.apiKey) { openSettings('writing'); status('请先填写当前使用模型的 API Key。', true); return; }
     reset(); controller = new AbortController(); onBusy(true);
     $('writingSource').disabled = true; $('clearWriting').disabled = true; $('writingSample').disabled = true;
     $('stopWriting').hidden = false; $('reviewWriting').textContent = '正在检查…'; sync();

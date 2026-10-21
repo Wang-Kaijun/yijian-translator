@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 const pages = process.argv.includes('--pages');
 const out = pages ? 'dist' : 'public';
 await mkdir(out, { recursive: true });
+await copyFile('scripts/paw-bridge.py', `${out}/paw-bridge.py`);
 if (pages) {
   let html = await readFile('public/index.html', 'utf8');
   html = html.replace('<span id="hostingNote">在你的局域网中运行</span>', '<span id="hostingNote">GitHub Pages · 浏览器直连</span>')
@@ -27,6 +28,7 @@ for (const name of packages) {
   licenses.push(`${name} ${metadata.version} (${metadata.license})\n${license}`);
 }
 licenses.push(await readFile(`${out}/app.js.LEGAL.txt`, 'utf8').catch(() => ''));
+licenses.push(await readFile('THIRD_PARTY_NOTICES.txt', 'utf8'));
 await writeFile(`${out}/licenses.txt`, licenses.join('\n\n--------------------\n\n'));
 if (pages) {
   // Pages caches assets. Version references so a refreshed HTML document cannot run an older script.
