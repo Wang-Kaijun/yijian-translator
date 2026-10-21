@@ -39,3 +39,25 @@ test('multiple custom sites keep keys isolated and local sites need no key', () 
   const id = p.sites.save(null, { type: 'local', baseUrl: 'http://localhost:11434/v1', model: 'local' }, 'Local', ['local']);
   p.bind('declaudish', id, 'local'); assert.equal(p.effective('declaudish').apiKey, '');
 });
+
+test('rename preserves shared keys and selections; deletion cannot revive old configurations after reload', () => {
+  const saved = storage(), p = createProfiles(saved, '/', 'modelscope');
+  const id = p.sites.save(null, config(), 'Before', ['a', 'b'], true);
+  p.bind('global', id, 'a'); p.bind('translation', id, 'b'); p.setOverride('writing', true);
+  const other = p.sites.save(null, config('other-secret'), 'Other', ['a'], true);
+  p.bind('declaudish', other, 'a');
+  p.sites.rename(id, 'After');
+  assert.equal(p.effective('translation').label, 'After');
+  assert.equal(p.effective('translation').model, 'b');
+  assert.equal(p.effective('translation').apiKey, 'test-site-secret');
+  assert.throws(() => p.sites.rename(id, '  '));
+  p.sites.remove(id);
+  assert.equal(p.sites.read(id), null);
+  assert.ok(!JSON.stringify([...saved.values.values()]).includes('test-site-secret'));
+  for (const state of [p, createProfiles(saved, '/', 'modelscope')]) {
+    for (const scope of ['global', 'translation', 'writing']) {
+      assert.equal(state.effective(scope).baseUrl, ''); assert.equal(state.effective(scope).apiKey, '');
+    }
+    assert.equal(state.effective('declaudish').apiKey, 'other-secret');
+  }
+});

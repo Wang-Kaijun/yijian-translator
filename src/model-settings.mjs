@@ -74,6 +74,8 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   function selectSite() {
     const selected = $('savedSite').value;
     const site = profiles.sites.read(selected);
+    $('siteActions').hidden = scope !== 'global' || !site;
+    $('siteRenamePanel').hidden = true; $('siteDeletePanel').hidden = true;
     const linked = scope !== 'global' && Boolean(site);
     $('linkedSiteFields').hidden = !linked; $('siteEditor').hidden = linked;
     $('siteNameField').hidden = scope !== 'global'; $('siteModelsField').hidden = scope !== 'global';
@@ -99,7 +101,8 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     scope = next; $('settingsTitle').textContent = names[scope] + '模型配置';
     $('savedSite').replaceChildren(option('__legacy', scope === 'global' ? '当前配置（保存为站点）' : '当前独立配置'), ...profiles.sites.list().map(site => option(site.id, site.label)));
     if (scope === 'global') $('savedSite').append(option('__new', '＋ 添加站点'));
-    $('savedSite').value = profiles.binding(scope)?.siteId || '__legacy';
+    const boundSite = profiles.binding(scope)?.siteId;
+    $('savedSite').value = profiles.sites.read(boundSite) ? boundSite : '__legacy';
     $('savedSiteHint').textContent = scope === 'global' ? '添加并保存多个站点；此处应用的模型同时成为全局默认模型。' : '选择全局已保存的站点即可复用地址、模型列表和密钥。';
     $('clearKeys').textContent = '清除此站点的密钥';
     $('featureOverride').checked = profiles.isOverridden(scope);
@@ -127,7 +130,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     if (profiles.isOverridden(feature) || profiles.binding(feature)) {
       const binding = profiles.binding(profiles.isOverridden(feature) ? 'global' : feature);
       switchWorkspace('global');
-      if (binding) { $('savedSite').value = binding.siteId; selectSite(); }
+      if (binding && profiles.sites.read(binding.siteId)) { $('savedSite').value = binding.siteId; selectSite(); }
     }
     else open(feature);
   }
@@ -178,6 +181,35 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   $('manageSites').addEventListener('click', () => {
     const id = $('savedSite').value; close(); switchWorkspace('global');
     if (profiles.sites.read(id)) { $('savedSite').value = id; selectSite(); }
+  });
+  $('renameSite').addEventListener('click', () => {
+    const site = profiles.sites.read($('savedSite').value); if (!site) return;
+    $('siteDeletePanel').hidden = true; $('siteRenamePanel').hidden = false;
+    $('newSiteName').value = site.label; $('newSiteName').focus(); $('newSiteName').select();
+  });
+  $('cancelRenameSite').addEventListener('click', () => { $('siteRenamePanel').hidden = true; });
+  $('confirmRenameSite').addEventListener('click', () => {
+    if (isBusy() || controller) return;
+    try {
+      const id = $('savedSite').value, label = $('newSiteName').value.trim();
+      profiles.sites.rename(id, label);
+      $('savedSite').selectedOptions[0].textContent = label; $('siteName').value = label;
+      $('siteRenamePanel').hidden = true; refresh(); toast('站点名称已修改');
+    } catch (e) { error(e); }
+  });
+  $('deleteSite').addEventListener('click', () => {
+    const id = $('savedSite').value, site = profiles.sites.read(id); if (!site) return;
+    const affected = Object.keys(names).filter(s => profiles.binding(s)?.siteId === id).map(s => names[s]);
+    $('siteRenamePanel').hidden = true; $('siteDeletePanel').hidden = false;
+    $('siteDeleteMessage').textContent = `删除「${site.label}」及其保存的地址、模型列表和密钥？${affected.length ? '引用此站点的' + affected.join('、') + '需重新选择站点；使用全局模型的功能随全局设置生效。' : ''}不会自动切换到其他接口。`;
+  });
+  $('cancelDeleteSite').addEventListener('click', () => { $('siteDeletePanel').hidden = true; });
+  $('confirmDeleteSite').addEventListener('click', () => {
+    if (isBusy() || controller) return;
+    try {
+      profiles.sites.remove($('savedSite').value); load('global'); refresh();
+      $('settingsStatus').textContent = '站点及保存的密钥已删除。引用此站点的配置需要重新选择站点。'; toast('站点已删除');
+    } catch (e) { error(e); }
   });
   $('clearKeys').addEventListener('click', () => {
     try {

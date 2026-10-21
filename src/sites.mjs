@@ -36,6 +36,17 @@ export function createSiteLibrary(storage, path) {
       const next = new Map(sites); next.set(id, site); persist(next); sites.set(id, site);
       return id;
     },
+    rename(id, label) {
+      const site = sites.get(id);
+      if (!site) throw new Error('请选择已保存的站点。');
+      if (typeof label !== 'string' || !label.trim() || label.trim().length > 80) throw new Error('请输入 1–80 个字符的站点名称。');
+      const updated = { ...site, label: label.trim() };
+      const next = new Map(sites); next.set(id, updated); persist(next); sites.set(id, updated);
+    },
+    remove(id) {
+      if (!sites.has(id)) throw new Error('请选择已保存的站点。');
+      const next = new Map(sites); next.delete(id); persist(next); sites.delete(id);
+    },
     clearKeys(id) {
       const next = new Map(sites);
       for (const [key, site] of next) if (!id || key === id) next.set(key, { ...site, apiKey: '', remember: false });
