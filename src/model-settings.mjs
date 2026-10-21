@@ -1,4 +1,4 @@
-import { PROVIDERS as presets, validateExternalProvider } from '../providers.mjs';
+import { PROVIDERS as presets, validateExternalProvider, isLocalProvider } from '../providers.mjs';
 import { translateWithProvider, fetchModels } from './api.mjs';
 import { cleanModels } from './sites.mjs';
 
@@ -29,6 +29,14 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
       if (!['closeSettings', 'cancelSettings'].includes(el.id)) el.disabled = locked;
     }
   }
+  function endpointHint() {
+    const type = $('providerType').value;
+    const local = isLocalProvider({ type, baseUrl: $('externalUrl').value });
+    $('externalKey').placeholder = local ? '未启用鉴权可留空' : '粘贴此站点的 API Key';
+    const hint = local ? '已识别为本机 / 局域网接口，支持 HTTP，未启用鉴权可留空密钥。服务需允许本站来源；按浏览器提示允许本地网络访问。' : ['local', 'custom'].includes(type) ? '本机或局域网支持 HTTP，例如 http://127.0.0.1:11434/v1 或 http://192.168.1.100:8080/v1；公网接口使用 HTTPS。' : presets[type]?.hint || (type === 'zai' ? '部分接口可能不允许浏览器跨域访问，请通过测试确认。' : '');
+    $('providerHint').hidden = !hint; $('providerHint').textContent = hint;
+    return local;
+  }
   function fields(config) {
     const type = config.type;
     $('providerType').value = type;
@@ -38,10 +46,8 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     $('externalUrl').value = config.baseUrl || ''; $('externalUrl').readOnly = !['local', 'custom'].includes(type);
     $('externalModel').value = config.model || ''; $('externalKey').value = config.apiKey || '';
     $('externalKey').type = 'password'; $('showKey').textContent = '显示';
-    $('externalKey').placeholder = type === 'local' ? '未启用鉴权可留空' : '粘贴此站点的 API Key';
     $('rememberKey').checked = Boolean(config.remember);
-    const hint = type === 'local' ? 'Ollama 示例：http://127.0.0.1:11434/v1。服务需允许本站来源；按浏览器提示允许本地网络访问。局域网填写服务器实际 IP。' : presets[type]?.hint || (type === 'zai' ? '部分接口可能不允许浏览器跨域访问，请通过测试确认。' : '');
-    $('providerHint').hidden = !hint; $('providerHint').textContent = hint;
+    endpointHint();
     $('getKey').hidden = !presets[type]?.keyUrl;
     if (presets[type]?.keyUrl) $('getKey').href = presets[type].keyUrl;
     const list = config.models || presets[type]?.models || [];
@@ -57,7 +63,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
       const binding = profiles.binding(scope);
       $('linkedModel').value = binding?.siteId === selected ? binding.model : site.model;
       models('linkedModels', site.models);
-      $('linkedSiteSummary').textContent = `${site.baseUrl} · ${site.apiKey ? '已配置共享密钥' : site.type === 'local' ? '未设置密钥（无鉴权服务可用）' : '需要在全局模型页补充密钥'}。此处只选择模型，修改站点会同步到所有引用它的功能。`;
+      $('linkedSiteSummary').textContent = `${site.baseUrl} · ${site.apiKey ? '已配置共享密钥' : isLocalProvider(site) ? '未设置密钥（无鉴权服务可用）' : '需要在全局模型页补充密钥'}。此处只选择模型，修改站点会同步到所有引用它的功能。`;
     } else {
       const config = site || (selected === '__new' ? { type: 'modelscope', ...presets.modelscope, apiKey: '' } : profiles.own(scope));
       fields(config); $('siteName').value = site?.label || '';
@@ -146,7 +152,8 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   });
   $('externalUrl').addEventListener('input', () => {
     $('externalKey').value = ''; $('rememberKey').checked = false; $('siteModels').value = ''; models('modelSuggestions', []);
-    $('settingsStatus').textContent = '地址已更改；请填写此地址的密钥并重新获取模型列表。';
+    const local = endpointHint();
+    $('settingsStatus').textContent = local ? '地址已更改；无鉴权服务可直接获取模型列表，需要鉴权时请填写此地址的密钥。' : '地址已更改；请填写此地址的密钥并重新获取模型列表。';
   });
   $('siteModels').addEventListener('input', () => models('modelSuggestions', $('siteModels').value.split('\n')));
   $('showKey').addEventListener('click', () => { const show = $('externalKey').type === 'password'; $('externalKey').type = show ? 'text' : 'password'; $('showKey').textContent = show ? '隐藏' : '显示'; });

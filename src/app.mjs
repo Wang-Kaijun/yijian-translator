@@ -1,3 +1,4 @@
+import { isLocalProvider } from '../providers.mjs';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { createPlan, acceptTranslations, renderPlan, pendingBatches, previewSource, detectDirection } from './translation.mjs';
@@ -134,7 +135,7 @@ async function translateBatch(items, signal) {
 
 async function translate() {
   if (busy || !$('source').value.trim()) return;
-  if (!['localai', 'local'].includes(providerConfig.type) && !providerConfig.apiKey) { openEffectiveSettings('translation'); settingsError(new Error('请先填写你自己的 API Key。')); return; }
+  if (providerConfig.type !== 'localai' && !isLocalProvider(providerConfig) && !providerConfig.apiKey) { openEffectiveSettings('translation'); settingsError(new Error('请先填写你自己的 API Key。')); return; }
   if (new TextEncoder().encode($('source').value).length > MAX_BYTES) { status('内容超过 2 MB，请分成较小的文档。', true); return; }
   const key = JSON.stringify([mode, $('direction').value, providerConfig.type, providerConfig.baseUrl, activeModel(), $('source').value]);
   try {

@@ -1,3 +1,4 @@
+import { isLocalProvider } from '../providers.mjs';
 import { reviewWithProvider } from './api.mjs';
 import { MAX_WRITING_CHARS, validateWritingInput } from '../writing.mjs';
 
@@ -63,7 +64,7 @@ export function setupWriting({ getProvider, allowLocal, openSettings, configure 
     const text = $('writingSource').value;
     try { validateWritingInput(text); } catch (error) { status(error.message, true); return; }
     const provider = { ...getProvider() };
-    if (!['localai', 'local'].includes(provider.type) && !provider.apiKey) { openSettings('writing'); status('请先填写当前使用模型的 API Key。', true); return; }
+    if (provider.type !== 'localai' && !isLocalProvider(provider) && !provider.apiKey) { openSettings('writing'); status('请先填写当前使用模型的 API Key。', true); return; }
     reset(); controller = new AbortController(); onBusy(true);
     $('writingSource').disabled = true; $('clearWriting').disabled = true; $('writingSample').disabled = true;
     $('stopWriting').hidden = false; $('reviewWriting').textContent = '正在检查…'; sync();
