@@ -94,13 +94,13 @@
 
       </section>
       <section id="globalPanel" role="tabpanel" aria-labelledby="globalTab" hidden>
-        <section class="writing-intro"><p class="eyebrow">ONE MODEL, WHEN YOU NEED IT</p><h2>全局模型</h2><p>需要统一使用一个模型时开启覆盖，平时各功能独立设置。</p></section>
+        <section class="writing-intro"><p class="eyebrow">YOUR SHARED MODEL</p><h2>全局模型</h2><p>在这里配置共用模型，由各功能分别决定是否使用。</p></section>
         <div class="global-layout">
           <div class="workspace global-settings" id="globalFormHost"></div>
           <aside class="override-card">
-            <label class="override-heading" for="globalOverride"><span>全局覆盖</span><input id="globalOverride" type="checkbox" role="switch" aria-describedby="overrideDescription"></label>
-            <p id="overrideDescription">关闭时，翻译和润色各用自己的模型。开启后，两者统一使用此处保存的模型，各自配置仍会保留。</p>
-            <p id="overrideStatus" role="status"></p>
+            <h2>各功能独立选择</h2>
+            <p>在翻译或润色的模型设置中，分别开启「使用全局模型」。关闭后，该功能恢复自己的模型配置。</p>
+            <p id="globalUsage" role="status"></p>
           </aside>
         </div>
       </section>
@@ -110,7 +110,11 @@
   <dialog id="settingsDialog" aria-labelledby="settingsTitle">
     <div id="settingsForm">
     <div class="dialog-heading"><div><p class="eyebrow">MODEL SETTINGS</p><h2 id="settingsTitle">模型设置</h2></div><button id="closeSettings" class="icon-button" aria-label="关闭引擎设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
-    <p id="featureOverrideNote" class="settings-note" hidden>当前已开启全局覆盖。这里仍只修改本功能的模型，关闭全局覆盖后生效。</p>
+    <div id="featureOverrideControl" class="feature-override">
+      <label class="override-heading" for="featureOverride"><span>使用全局模型</span><input id="featureOverride" type="checkbox" role="switch" aria-describedby="featureOverrideNote"></label>
+      <p id="featureOverrideNote" class="settings-note">只对当前功能生效；关闭后使用本功能的独立配置。</p>
+      <p id="effectiveGlobalSummary" class="settings-note" hidden></p>
+    </div>
     <div id="profileFields">
     <label class="form-field">服务商<select id="providerType"><option value="localai">LocalAI · 局域网默认</option><option value="modelscope">魔搭 ModelScope · Qwen3.8 Flash Next</option><option value="groq">Groq · GPT-OSS 120B</option><option value="openrouter">OpenRouter · Qwen3.8 27B 免费版</option><option value="siliconflow">硅基流动 · Xing4.0-29B 免费版</option><option value="deepseek">DeepSeek</option><option value="zai">Z.ai</option><option value="zhipu">智谱 BigModel · GLM-4.7-Flash 免费版</option><option value="custom">自定义 · OpenAI 兼容接口</option></select></label>
     <p id="localSettingsNote" class="settings-note">使用此局域网服务配置的 LocalAI，默认模型为 Qwen3.8 Flash Next。无需填写个人 API Key。</p>

@@ -32,8 +32,9 @@
 .override-heading input:checked{background:#2d614e}.override-heading input:checked:before{transform:translateX(18px)}
 .override-heading input:disabled{opacity:.5;cursor:not-allowed}.override-heading input:focus-visible{outline:3px solid #80bda7;outline-offset:3px}
 .override-card p{font-size:12px;line-height:1.9;color:#708468;margin:16px 0 0}
-#overrideStatus{padding-top:15px;border-top:1px solid #d2dfc8;font-size:11px}
-#featureOverrideNote{padding:12px;background:#edf3e7;border-radius:8px}
+#globalUsage{padding-top:15px;border-top:1px solid #d2dfc8;font-size:11px}
+.feature-override{padding:16px;background:#edf3e7;border-radius:10px;margin-bottom:18px}
+.feature-override .override-heading{font-size:13px}.feature-override .settings-note{margin:10px 0 0}
 [data-theme=dark] .workspace-tabs{border-color:#344436}
 [data-theme=dark] .workspace-tabs button{color:#91a785}
 [data-theme=dark] .workspace-tabs button[aria-selected=true]{color:#d1dfc8;border-color:#8faf76}
@@ -41,8 +42,8 @@
 [data-theme=dark] .model-picker{background:#213123;border-color:#40513c;color:#d1dfc8}
 [data-theme=dark] .model-picker:hover:not(:disabled){background:#293e24;border-color:#78966c}
 [data-theme=dark] .model-picker-label,[data-theme=dark] .model-picker-action,[data-theme=dark] .override-card p{color:#a0b48f}
-[data-theme=dark] .override-card,[data-theme=dark] #featureOverrideNote{background:#213123;border-color:#40513c}
-[data-theme=dark] #overrideStatus{border-color:#40513c}
+[data-theme=dark] .override-card,[data-theme=dark] .feature-override{background:#213123;border-color:#40513c}
+[data-theme=dark] #globalUsage{border-color:#40513c}
 [data-theme=dark] .override-heading input:checked{background:#608a4d}
 @media(max-width:800px){.global-layout{grid-template-columns:1fr;gap:16px}.override-card{grid-row:1}.global-settings{padding:21px}}
 @media(max-width:680px){.workspace-tabs{gap:0;padding-top:12px}.workspace-tabs button{padding:13px 14px;font-size:12px;flex:1}.model-picker{width:100%;max-width:100%;padding:10px 12px}.model-picker-action{margin-left:auto}.action-bar{align-items:stretch}.translate-actions{margin-left:auto}.model-picker .engine-icon{display:grid}.model-picker-label{font-size:10px}.model-picker-name{font-size:12px}#writingPanel .writing-intro,#globalPanel .writing-intro{padding:28px 0 24px}#writingPanel .writing-intro h2,#globalPanel .writing-intro h2{font-size:24px}}

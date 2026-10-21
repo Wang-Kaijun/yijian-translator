@@ -29,8 +29,19 @@ export function createProfiles(storage, path, defaultType) {
       try { configs[scope].model = storage?.getItem(`${key(scope)}:model`) || configs[scope].model; } catch {}
     }
   }
-  // Migrate previously inherited settings into independent feature configurations.
-  // The global switch then overrides routing without ever replacing those configurations.
+  const overrides = {};
+  const overrideKey = scope => `yijian:global-override:${path}:${scope}`;
+  for (const scope of ['translation', 'writing']) {
+    let legacyGlobal = false;
+    try { legacyGlobal = Boolean(storage?.getItem(key('global'))); } catch {}
+    overrides[scope] = !configs[scope] && legacyGlobal;
+    try {
+      const saved = storage?.getItem(overrideKey(scope));
+      if (saved !== null && saved !== undefined) overrides[scope] = saved === 'true';
+      storage?.setItem(overrideKey(scope), String(overrides[scope]));
+    } catch {}
+  }
+  // Preserve each feature's configuration independently from its global override choice.
   for (const scope of ['translation', 'writing']) {
     if (!configs[scope]) {
       configs[scope] = { ...configs.global };
@@ -42,16 +53,14 @@ export function createProfiles(storage, path, defaultType) {
       } catch {}
     }
   }
-  const overrideKey = `yijian:global-override:${path}`;
-  let override = false;
-  try { override = storage?.getItem(overrideKey) === 'true'; } catch {}
   return {
     own: scope => configs[scope],
-    effective: scope => override ? configs.global : configs[scope],
-    isOverridden: () => override,
-    setOverride(value) {
-      override = Boolean(value);
-      try { storage?.setItem(overrideKey, String(override)); } catch {}
+    effective: scope => overrides[scope] ? configs.global : configs[scope],
+    isOverridden: scope => Boolean(overrides[scope]),
+    setOverride(scope, value) {
+      if (!['translation', 'writing'].includes(scope)) throw new Error('只能为翻译或润色设置全局覆盖。');
+      overrides[scope] = Boolean(value);
+      try { storage?.setItem(overrideKey(scope), String(overrides[scope])); } catch {}
     },
     initial,
     save(scope, config, remember = false) {

@@ -56,7 +56,7 @@ function setBusy(value) {
 }
 
 function syncSettingsBusy() {
-  for (const id of ['settings', 'writingSettings', 'globalOverride', 'applySettings', 'testProvider', 'clearKeys']) $(id).disabled = busy || writingBusy;
+  for (const id of ['settings', 'writingSettings', 'featureOverride', 'applySettings', 'testProvider', 'clearKeys']) $(id).disabled = busy || writingBusy;
 }
 
 function resetOutput() {
@@ -260,23 +260,30 @@ function syncProviderUI() {
   providerConfig = profiles.effective('translation');
   for (const [scope, label, model] of [['translation', 'engineLabel', 'modelName'], ['writing', 'writingEngine', 'writingModelName']]) {
     const config = profiles.effective(scope);
-    $(label).textContent = (profiles.isOverridden() ? '全局覆盖' : '本功能模型') + ' · ' + (presets[config.type]?.name || 'LocalAI');
+    $(label).textContent = (profiles.isOverridden(scope) ? '使用全局模型' : '本功能模型') + ' · ' + (presets[config.type]?.name || 'LocalAI');
     $(model).textContent = config.model || '请设置模型';
   }
   const destination = config => config.type === 'localai' ? 'LocalAI（局域网）' : config.baseUrl ? new URL(config.baseUrl).hostname : '所选接口';
   $('privacyDestination').textContent = '待译文本仅发送至 ' + destination(providerConfig);
   $('writingDestination').textContent = '待检查英文仅发送至 ' + destination(profiles.effective('writing')) + '。本应用不保存英文内容或检查结果。';
-  $('globalOverride').checked = profiles.isOverridden();
-  $('overrideStatus').textContent = profiles.isOverridden() ? '已开启 · 翻译和润色统一使用全局模型' : '已关闭 · 翻译和润色各用自己的模型';
-  $('featureOverrideNote').hidden = settingsScope === 'global' || !profiles.isOverridden();
+  $('globalUsage').textContent = ['translation', 'writing'].map(scope => (scope === 'translation' ? '翻译：' : '润色：') + (profiles.isOverridden(scope) ? '使用全局模型' : '使用独立模型')).join('；');
+}
+function syncFeatureOverride() {
+  const inherited = settingsScope !== 'global' && $('featureOverride').checked;
+  $('featureOverrideControl').hidden = settingsScope === 'global';
+  $('profileFields').hidden = inherited;
+  $('effectiveGlobalSummary').hidden = !inherited;
+  const config = profiles.own('global');
+  $('effectiveGlobalSummary').textContent = '当前全局模型：' + (presets[config.type]?.name || 'LocalAI') + ' · ' + config.model + '。可在「全局模型」标签页修改。';
 }
 function loadSettingsScope(scope) {
   settingsScope = scope;
   $('settingsTitle').textContent = { translation: '翻译模型', writing: '语法与润色模型', global: '全局模型配置' }[scope];
   $('providerType').value = profiles.own(scope).type;
   $('clearKeys').textContent = scope === 'global' ? '清除全局配置保存的密钥' : '清除此功能保存的密钥';
-  $('featureOverrideNote').hidden = scope === 'global' || !profiles.isOverridden();
+  $('featureOverride').checked = profiles.isOverridden(scope);
   settingsFields();
+  syncFeatureOverride();
 }
 function openSettings(scope = 'translation') {
   if (busy || writingBusy || settingsController) return;
@@ -285,7 +292,7 @@ function openSettings(scope = 'translation') {
   $('settingsDialog').showModal();
 }
 function openEffectiveSettings(scope) {
-  if (profiles.isOverridden()) switchWorkspace('global');
+  if (profiles.isOverridden(scope)) switchWorkspace('global');
   else openSettings(scope);
 }
 function switchWorkspace(scope, focus = false) {
@@ -318,12 +325,7 @@ for (const tab of document.querySelectorAll('[data-workspace]')) {
     event.preventDefault(); switchWorkspace(tabs[index].dataset.workspace, true);
   });
 }
-$('globalOverride').addEventListener('change', () => {
-  if (busy || writingBusy) { $('globalOverride').checked = profiles.isOverridden(); return; }
-  profiles.setOverride($('globalOverride').checked);
-  syncProviderUI(); resetOutput(); languageLabels();
-  status('模型使用方式已更新，准备翻译。');
-});
+$('featureOverride').addEventListener('change', syncFeatureOverride);
 function readSettings() {
   const type = $('providerType').value;
   if (type === 'localai' && !staticApp) {
@@ -356,13 +358,14 @@ $('applySettings').addEventListener('click', () => {
   try {
     const previousTranslation = JSON.stringify(profiles.effective('translation'));
     if (busy || writingBusy) return;
-    const next = readSettings();
-    profiles.save(settingsScope, next, $('rememberKey').checked);
+    const inherited = settingsScope !== 'global' && $('featureOverride').checked;
+    if (!inherited) profiles.save(settingsScope, readSettings(), $('rememberKey').checked);
+    if (settingsScope !== 'global') profiles.setOverride(settingsScope, inherited);
     syncProviderUI();
     if (JSON.stringify(profiles.effective('translation')) !== previousTranslation) { resetOutput(); status('翻译模型已更新，准备翻译。'); }
     languageLabels(); closeSettings();
     toast(`已保存${{ global: '全局模型', translation: '翻译模型', writing: '语法与润色模型' }[settingsScope]}设置`);
-    if (settingsScope === 'global') $('settingsStatus').textContent = '全局模型已保存。' + (profiles.isOverridden() ? '已用于翻译和润色。' : '开启全局覆盖后生效。');
+    if (settingsScope === 'global') $('settingsStatus').textContent = '全局模型已保存。仅对开启「使用全局模型」的功能生效。';
   } catch (error) { settingsError(error); }
 });
 $('testProvider').addEventListener('click', async () => {
@@ -370,14 +373,14 @@ $('testProvider').addEventListener('click', async () => {
   try {
     const config = readSettings();
     settingsController = new AbortController();
-    for (const id of ['testProvider', 'applySettings', 'providerType', 'externalUrl', 'externalModel', 'externalKey', 'clearKeys', 'rememberKey', 'globalOverride']) $(id).disabled = true;
+    for (const id of ['testProvider', 'applySettings', 'providerType', 'externalUrl', 'externalModel', 'externalKey', 'clearKeys', 'rememberKey', 'featureOverride']) $(id).disabled = true;
     $('settingsStatus').classList.remove('error'); $('settingsStatus').textContent = '浏览器正在直连接口并验证示例翻译…';
     const translations = await translateWithProvider({ provider: config, model: config.model, target: 'zh', items: [{ id: 'test', text: 'Hello. Welcome to the translation workspace.' }], signal: settingsController.signal, allowLocal: !staticApp });
     $('settingsStatus').textContent = `接口可用 · ${translations[0].text}`;
   } catch (error) { if (error.name !== 'AbortError') settingsError(error); }
   finally {
     settingsController = null;
-    for (const id of ['testProvider', 'applySettings', 'providerType', 'externalUrl', 'externalModel', 'externalKey', 'clearKeys', 'rememberKey', 'globalOverride']) $(id).disabled = false;
+    for (const id of ['testProvider', 'applySettings', 'providerType', 'externalUrl', 'externalModel', 'externalKey', 'clearKeys', 'rememberKey', 'featureOverride']) $(id).disabled = false;
     syncSettingsBusy();
   }
 });
