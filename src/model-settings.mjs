@@ -7,7 +7,23 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   const names = { translation: '翻译', writing: '语法与润色', declaudish: 'De-Claudish', global: '全局' };
   let scope = 'translation', controller = null, workspace = 'translation';
   const option = (value, text) => { const el = document.createElement('option'); el.value = value; el.textContent = text; return el; };
-  const models = (id, values) => $(id).replaceChildren(...cleanModels(values).map(value => option(value, value)));
+  const manualModel = '__manual_model__';
+  function modelChoices(id, values, current = $(id).value) {
+    const list = cleanModels([current, ...values]);
+    const select = $(id + 'Choice');
+    select.replaceChildren(option('', list.length ? '请选择模型' : '暂无模型列表，请获取列表或手动输入'), ...list.map(value => option(value, value)), option(manualModel, '手动输入模型 ID…'));
+    select.value = current || '';
+    $(id).value = current || ''; $(id).hidden = true;
+  }
+  for (const id of ['externalModel', 'linkedModel', 'localSettingsModel']) {
+    $(id + 'Choice').addEventListener('change', () => {
+      const value = $(id + 'Choice').value;
+      $(id).hidden = value !== manualModel;
+      $(id).value = value === manualModel ? '' : value;
+      if (value === manualModel) $(id).focus();
+    });
+  }
+  const models = (id, values) => modelChoices(id === 'linkedModels' ? 'linkedModel' : 'externalModel', values);
   const error = e => { $('settingsStatus').textContent = e.message; $('settingsStatus').classList.add('error'); };
 
   function refresh() {
@@ -42,7 +58,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     $('providerType').value = type;
     $('externalFields').hidden = type === 'localai';
     $('localSettingsNote').hidden = type !== 'localai'; $('localModelField').hidden = type !== 'localai';
-    $('localSettingsModel').value = type === 'localai' ? config.model : '';
+    modelChoices('localSettingsModel', [], type === 'localai' ? config.model : '');
     $('externalUrl').value = config.baseUrl || ''; $('externalUrl').readOnly = !['local', 'custom'].includes(type);
     $('externalModel').value = config.model || ''; $('externalKey').value = config.apiKey || '';
     $('externalKey').type = 'password'; $('showKey').textContent = '显示';
@@ -201,7 +217,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
         const ids = await fetchModels(config, request.signal);
         if (request.signal.aborted) return;
         $('siteModels').value = ids.join('\n'); models('modelSuggestions', ids);
-        if (!$('externalModel').value) $('externalModel').value = ids[0];
+        if (!$('externalModel').value) modelChoices('externalModel', ids, ids[0]);
         $('settingsStatus').textContent = `已读取 ${ids.length} 个模型，点击应用设置保存。`;
       } else {
         await translateWithProvider({ provider: config, model: config.model, target: 'zh', items: [{ id: 'test', text: 'Hello.' }], signal: request.signal, allowLocal: !staticApp });
