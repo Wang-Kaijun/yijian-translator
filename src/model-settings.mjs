@@ -14,6 +14,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     select.replaceChildren(option('', list.length ? '请选择模型' : '暂无模型列表，请获取列表或手动输入'), ...list.map(value => option(value, value)), option(manualModel, '手动输入模型 ID…'));
     select.value = current || '';
     $(id).value = current || ''; $(id).hidden = true;
+    if (id === 'externalModel') $('modelListStatus').textContent = list.length ? `下拉菜单中有 ${list.length} 个模型，点击选择` : '获取后直接在下方选择，无需复制粘贴';
   }
   for (const id of ['externalModel', 'linkedModel', 'localSettingsModel']) {
     $(id + 'Choice').addEventListener('change', () => {
@@ -55,6 +56,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   }
   function fields(config) {
     const type = config.type;
+    $('manualModelList').open = false;
     $('providerType').value = type;
     $('externalFields').hidden = type === 'localai';
     $('localSettingsNote').hidden = type !== 'localai'; $('localModelField').hidden = type !== 'localai';
@@ -218,7 +220,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
         if (request.signal.aborted) return;
         $('siteModels').value = ids.join('\n'); models('modelSuggestions', ids);
         if (!$('externalModel').value) modelChoices('externalModel', ids, ids[0]);
-        $('settingsStatus').textContent = `已读取 ${ids.length} 个模型，点击应用设置保存。`;
+        $('settingsStatus').textContent = `已读取 ${ids.length} 个模型，请在「选择模型」下拉菜单中选择，再应用设置。`;
       } else {
         await translateWithProvider({ provider: config, model: config.model, target: 'zh', items: [{ id: 'test', text: 'Hello.' }], signal: request.signal, allowLocal: !staticApp });
         if (!request.signal.aborted) $('settingsStatus').textContent = '接口可用，示例翻译验证通过。';
