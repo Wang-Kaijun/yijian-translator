@@ -1,7 +1,7 @@
 import { reviewWithProvider } from './api.mjs';
 import { MAX_WRITING_CHARS, validateWritingInput } from '../writing.mjs';
 
-export function setupWriting({ getProvider, allowLocal, openSettings, toast, onBusy }) {
+export function setupWriting({ getProvider, allowLocal, openSettings, configure = openSettings, toast, onBusy }) {
   const $ = id => document.getElementById(id);
   let controller = null;
   const status = (message, error = false) => { $('writingStatus').textContent = message; $('writingStatus').classList.toggle('error', error); };
@@ -63,7 +63,7 @@ export function setupWriting({ getProvider, allowLocal, openSettings, toast, onB
     const text = $('writingSource').value;
     try { validateWritingInput(text); } catch (error) { status(error.message, true); return; }
     const provider = { ...getProvider() };
-    if (provider.type !== 'localai' && !provider.apiKey) { openSettings('writing'); status('请先配置语法与润色使用的模型和 API Key，或填写全局默认设置。', true); return; }
+    if (provider.type !== 'localai' && !provider.apiKey) { openSettings('writing'); status('请先填写当前使用模型的 API Key。', true); return; }
     reset(); controller = new AbortController(); onBusy(true);
     $('writingSource').disabled = true; $('clearWriting').disabled = true; $('writingSample').disabled = true;
     $('stopWriting').hidden = false; $('reviewWriting').textContent = '正在检查…'; sync();
@@ -82,7 +82,7 @@ export function setupWriting({ getProvider, allowLocal, openSettings, toast, onB
   $('writingSample').addEventListener('click', () => { $('writingSource').value = 'Yesterday I go to the library and find an interesting book. It explain how small habits can makes a big difference in our daily life.'; reset(); status('示例已就绪，点击检查语法与润色。'); });
   $('reviewWriting').addEventListener('click', review);
   $('stopWriting').addEventListener('click', () => controller?.abort());
-  $('writingSettings').addEventListener('click', () => openSettings('writing'));
+  $('writingSettings').addEventListener('click', () => configure('writing'));
   $('writingSource').addEventListener('keydown', event => {
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); review(); }
   });

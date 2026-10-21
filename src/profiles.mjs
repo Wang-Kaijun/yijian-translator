@@ -29,12 +29,33 @@ export function createProfiles(storage, path, defaultType) {
       try { configs[scope].model = storage?.getItem(`${key(scope)}:model`) || configs[scope].model; } catch {}
     }
   }
+  // Migrate previously inherited settings into independent feature configurations.
+  // The global switch then overrides routing without ever replacing those configurations.
+  for (const scope of ['translation', 'writing']) {
+    if (!configs[scope]) {
+      configs[scope] = { ...configs.global };
+      try {
+        if (configs[scope].apiKey) stores[scope].save(configs[scope], Boolean(configs[scope].remember));
+        storage?.setItem(key(scope), configs[scope].type);
+        storage?.setItem(`${key(scope)}:config`, JSON.stringify({ type: configs[scope].type, baseUrl: configs[scope].baseUrl, model: configs[scope].model }));
+        if (configs[scope].type === 'localai') storage?.setItem(`${key(scope)}:model`, configs[scope].model);
+      } catch {}
+    }
+  }
+  const overrideKey = `yijian:global-override:${path}`;
+  let override = false;
+  try { override = storage?.getItem(overrideKey) === 'true'; } catch {}
   return {
     own: scope => configs[scope],
-    effective: scope => configs[scope] || configs.global,
+    effective: scope => override ? configs.global : configs[scope],
+    isOverridden: () => override,
+    setOverride(value) {
+      override = Boolean(value);
+      try { storage?.setItem(overrideKey, String(override)); } catch {}
+    },
     initial,
     save(scope, config, remember = false) {
-      if (scope === 'global' && !config) throw new Error('全局默认需要选择模型。');
+      if (!config) throw new Error('请选择此功能使用的模型。');
       if (config && config.type !== 'localai') stores[scope].save(config, remember);
       configs[scope] = config ? { ...config, remember: Boolean(remember) } : null;
       try {
@@ -45,10 +66,10 @@ export function createProfiles(storage, path, defaultType) {
         } else storage?.removeItem(key(scope));
       } catch {}
     },
-    clearKeys() {
+    clearKeys(selectedScope) {
       // Clear every scope even if a storage operation fails for another one.
       let failure;
-      for (const scope of scopes) {
+      for (const scope of selectedScope ? [selectedScope] : scopes) {
         if (configs[scope]) configs[scope] = { ...configs[scope], apiKey: '', remember: false };
         try { stores[scope].clear(); } catch (error) { failure = error; }
       }
