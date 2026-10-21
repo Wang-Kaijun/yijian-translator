@@ -1,11 +1,21 @@
 import { validateExternalProvider, generationOptions } from '../providers.mjs';
 import { translationPrompt, parseCompletion } from '../prompts.mjs';
+import { writingPrompt, validateWritingInput, parseWritingCompletion } from '../writing.mjs';
 
 function failure(message, retryable = false, retryAfter = 0) {
   return Object.assign(new Error(message), { retryable, retryAfter });
 }
 
-export async function translateWithProvider({ provider, model, target, items, signal, allowLocal = true }, fetchImpl = fetch) {
+export function translateWithProvider(options, fetchImpl = fetch) {
+  return requestWithProvider(options, fetchImpl);
+}
+
+export function reviewWithProvider(options, fetchImpl = fetch) {
+  validateWritingInput(options.text);
+  return requestWithProvider({ ...options, writing: true }, fetchImpl);
+}
+
+async function requestWithProvider({ provider, model, target, items, text, writing = false, signal, allowLocal = true }, fetchImpl) {
   const local = provider?.type === 'localai';
   if (local && !allowLocal) throw failure('在线版请使用外部 API；LocalAI 可在局域网版使用。');
   const config = local ? null : validateExternalProvider(provider, model);
@@ -16,14 +26,14 @@ export async function translateWithProvider({ provider, model, target, items, si
   const timer = setTimeout(abort, 180000);
   try {
     // External API keys never go to our server or GitHub. LocalAI's gateway receives text only.
-    const payload = local ? { provider: { type: 'localai' }, model, target, items } : {
+    const payload = local ? { provider: { type: 'localai' }, model, ...(writing ? { text } : { target, items }) } : {
       model: config.model, temperature: 0.15, ...generationOptions(config.type, config.model), stream: false,
       messages: [
-        { role: 'system', content: translationPrompt(target) },
-        { role: 'user', content: JSON.stringify({ items: items.map(({ id, text }) => ({ id, text })) }) },
+        { role: 'system', content: writing ? writingPrompt : translationPrompt(target) },
+        { role: 'user', content: JSON.stringify(writing ? { text } : { items: items.map(({ id, text }) => ({ id, text })) }) },
       ],
     };
-    const response = await fetchImpl(local ? './api/translate' : `${config.baseUrl}/chat/completions`, {
+    const response = await fetchImpl(local ? (writing ? './api/review' : './api/translate') : `${config.baseUrl}/chat/completions`, {
       method: 'POST', mode: local ? 'same-origin' : 'cors', credentials: 'omit', cache: 'no-store',
       redirect: 'error', referrerPolicy: 'no-referrer', signal: controller.signal,
       headers: { 'Content-Type': 'application/json', ...(local ? {} : { Authorization: `Bearer ${config.apiKey}` }) },
@@ -38,13 +48,13 @@ export async function translateWithProvider({ provider, model, target, items, si
     }
     let data;
     try { data = await response.json(); } catch { throw failure('接口未返回有效的 JSON，请检查 API 地址。'); }
-    if (local) return parseCompletion(JSON.stringify({ translations: data.translations }), items);
+    if (local) return writing ? parseWritingCompletion(JSON.stringify(data.review), text) : parseCompletion(JSON.stringify({ translations: data.translations }), items);
     const choice = data?.choices?.[0];
-    if (choice?.finish_reason === 'length') throw new Error('模型输出被截断，请重试当前分段');
-    return parseCompletion(choice?.message?.content, items);
+    if (choice?.finish_reason === 'length') throw new Error(writing ? '模型输出被截断，请缩短英文内容或更换模型后重试。' : '模型输出被截断，请重试当前分段');
+    return writing ? parseWritingCompletion(choice?.message?.content, text) : parseCompletion(choice?.message?.content, items);
   } catch (error) {
     if (signal?.aborted) throw new DOMException('已停止', 'AbortError');
-    if (controller.signal.aborted) throw failure('翻译等待超时，可继续未完成的分段', true);
+    if (controller.signal.aborted) throw failure(writing ? '检查等待超时，请重试或缩短英文内容。' : '翻译等待超时，可继续未完成的分段', true);
     if (error instanceof TypeError) throw failure('浏览器无法直连接口，请检查网络及服务商的跨域访问支持（CORS）');
     throw error;
   } finally {
