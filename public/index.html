@@ -151,16 +151,16 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
     </div>
     <div id="profileFields">
     <label class="form-field">已保存的站点<select id="savedSite"></select><small id="savedSiteHint">站点在全局模型中统一管理。</small></label>
-    <div id="linkedSiteFields" hidden><label class="form-field">此功能使用的模型<input id="linkedModel" type="text" list="linkedModels" autocomplete="off" spellcheck="false"><datalist id="linkedModels"></datalist></label><p id="linkedSiteSummary" class="settings-note"></p><button id="manageSites" class="subtle-button">管理站点或补充密钥 ↗</button></div>
+    <div id="linkedSiteFields" hidden><label class="form-field">此功能使用的模型<select id="linkedModelChoice" aria-label="选择模型 ID"></select><input id="linkedModel" type="text" autocomplete="off" spellcheck="false" placeholder="手动输入完整模型 ID" aria-label="手动输入模型 ID" hidden></label><p id="linkedSiteSummary" class="settings-note"></p><button id="manageSites" class="subtle-button">管理站点或补充密钥 ↗</button></div>
     <div id="siteEditor">
     <label id="siteNameField" class="form-field">站点名称<input id="siteName" maxlength="80" placeholder="例如：家中 Ollama / 常用云端"></label>
     <label class="form-field">服务商<select id="providerType"><option value="localai">LocalAI · 局域网默认</option><option value="local">本地 / 局域网模型 · Ollama 等</option><option value="modelscope">魔搭 ModelScope · Qwen3.8 Flash Next</option><option value="groq">Groq · GPT-OSS 120B</option><option value="openrouter">OpenRouter · Qwen3.8 27B 免费版</option><option value="siliconflow">硅基流动 · Xing4.0-29B 免费版</option><option value="deepseek">DeepSeek</option><option value="zai">Z.ai</option><option value="zhipu">智谱 BigModel · GLM-4.7-Flash 免费版</option><option value="custom">自定义 · OpenAI 兼容接口</option></select></label>
     <p id="localSettingsNote" class="settings-note">使用此局域网服务配置的 LocalAI，默认模型为 Qwen3.8 Flash Next。无需填写个人 API Key。</p>
-    <label id="localModelField" class="form-field">LocalAI 模型 ID<input id="localSettingsModel" type="text" autocomplete="off" spellcheck="false"></label>
+    <label id="localModelField" class="form-field">LocalAI 模型 ID<select id="localSettingsModelChoice" aria-label="选择模型 ID"></select><input id="localSettingsModel" type="text" autocomplete="off" spellcheck="false" placeholder="手动输入完整模型 ID" aria-label="手动输入模型 ID" hidden></label>
     <div id="externalFields" hidden>
       <p id="providerHint" class="settings-note" hidden>Z.ai 当前接口在本站测试中未允许浏览器跨域访问（CORS），可能无法直连。此情况更换密钥无效，请使用支持浏览器直连的服务商；本应用不会通过代理中转你的密钥。</p>
       <label class="form-field">API 地址<input id="externalUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://api.example.com/v1"><small>填写基础地址，末尾无需添加 /chat/completions。自定义接口自动识别本机 / 局域网地址并支持 HTTP；公网使用 HTTPS。</small></label>
-      <label class="form-field">模型 ID<input id="externalModel" type="text" autocomplete="off" spellcheck="false" placeholder="输入你的账户可用的模型 ID" list="modelSuggestions"><datalist id="modelSuggestions"></datalist></label>
+      <label class="form-field">模型 ID<select id="externalModelChoice" aria-label="选择模型 ID"></select><input id="externalModel" type="text" autocomplete="off" spellcheck="false" placeholder="手动输入完整模型 ID" aria-label="手动输入模型 ID" hidden></label>
       <div id="siteModelsField"><div class="test-row"><button id="fetchModels" class="secondary-button">获取模型列表</button><span>仅读取此站点的模型</span></div><label class="form-field">可复用的模型列表<textarea id="siteModels" rows="3" placeholder="每行一个模型 ID，也可自动获取"></textarea></label></div>
       <label class="form-field">API Key<div class="key-field"><input id="externalKey" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴你自己的 API Key" autocapitalize="off" data-lpignore="true"><button id="showKey" class="subtle-button" type="button">显示</button></div></label>
       <div class="key-options"><label><input id="rememberKey" type="checkbox"> 记住到此浏览器</label><a id="getKey" target="_blank" rel="noopener noreferrer" hidden>获取 API Key ↗</a></div>
