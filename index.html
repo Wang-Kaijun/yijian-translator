@@ -11,7 +11,7 @@
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <script src="./theme.js?v=2d2b27346b911226"></script>
   <link rel="stylesheet" href="./style.css?v=625ef4fdbdae605d">
-  <script type="module" src="./app.js?v=bfc18871bd884e04"></script>
+  <script type="module" src="./app.js?v=607f2c555bd8db47"></script>
 </head>
 <body>
   <div class="shell">
@@ -160,8 +160,9 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
     <div id="externalFields" hidden>
       <p id="providerHint" class="settings-note" hidden>Z.ai 当前接口在本站测试中未允许浏览器跨域访问（CORS），可能无法直连。此情况更换密钥无效，请使用支持浏览器直连的服务商；本应用不会通过代理中转你的密钥。</p>
       <label class="form-field">API 地址<input id="externalUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://api.example.com/v1"><small>填写基础地址，末尾无需添加 /chat/completions。自定义接口自动识别本机 / 局域网地址并支持 HTTP；公网使用 HTTPS。</small></label>
-      <label class="form-field">模型 ID<select id="externalModelChoice" aria-label="选择模型 ID"></select><input id="externalModel" type="text" autocomplete="off" spellcheck="false" placeholder="手动输入完整模型 ID" aria-label="手动输入模型 ID" hidden></label>
-      <div id="siteModelsField"><div class="test-row"><button id="fetchModels" class="secondary-button">获取模型列表</button><span>仅读取此站点的模型</span></div><label class="form-field">可复用的模型列表<textarea id="siteModels" rows="3" placeholder="每行一个模型 ID，也可自动获取"></textarea></label></div>
+      <div class="test-row"><button id="fetchModels" class="secondary-button">获取模型列表</button><span id="modelListStatus" role="status">获取后直接在下方选择，无需复制粘贴</span></div>
+      <label class="form-field">选择模型<select id="externalModelChoice" aria-label="选择模型 ID"></select><input id="externalModel" type="text" autocomplete="off" spellcheck="false" placeholder="手动输入完整模型 ID" aria-label="手动输入模型 ID" hidden></label>
+      <div id="siteModelsField"><details id="manualModelList"><summary>高级：手动维护站点模型列表</summary><label class="form-field">每行一个模型 ID<textarea id="siteModels" rows="3" placeholder="仅在接口不提供模型列表时手动填写"></textarea></label></details></div>
       <label class="form-field">API Key<div class="key-field"><input id="externalKey" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴你自己的 API Key" autocapitalize="off" data-lpignore="true"><button id="showKey" class="subtle-button" type="button">显示</button></div></label>
       <div class="key-options"><label><input id="rememberKey" type="checkbox"> 记住到此浏览器</label><a id="getKey" target="_blank" rel="noopener noreferrer" hidden>获取 API Key ↗</a></div>
       <p class="settings-note">默认刷新即清除密钥。勾选后保存在此浏览器的本站存储中。选用同一站点的功能共享该站点密钥；密钥不写入 GitHub。本地无鉴权接口可留空，局域网 HTTP 请求未加密。</p>
