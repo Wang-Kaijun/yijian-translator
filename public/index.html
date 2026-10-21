@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="中英翻译工作台，支持魔搭、Groq 等模型。文件处理在浏览器中完成，API Key 由用户自己填写。">
+  <meta name="description" content="中英翻译、英文润色与 De-Claudish 工作台。支持云端及本地模型、官方 PAW 和共享站点配置。">
   <meta name="color-scheme" content="light dark">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https:; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>译间 · 中英翻译与英文润色</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: http:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>译间 · 翻译、润色与 De-Claudish</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <script src="./theme.js"></script>
   <link rel="stylesheet" href="./style.css">
@@ -23,6 +23,7 @@
       <nav class="workspace-tabs" role="tablist" aria-label="工作台功能">
         <button id="translationTab" role="tab" aria-selected="true" aria-controls="translationPanel" data-workspace="translation">中英翻译</button>
         <button id="writingTab" role="tab" aria-selected="false" aria-controls="writingPanel" tabindex="-1" data-workspace="writing">语法与润色</button>
+        <button id="declaudishTab" role="tab" aria-selected="false" aria-controls="declaudishPanel" tabindex="-1" data-workspace="declaudish">De-Claudish</button>
         <button id="globalTab" role="tab" aria-selected="false" aria-controls="globalPanel" tabindex="-1" data-workspace="global">全局模型</button>
       </nav>
       <section id="translationPanel" role="tabpanel" aria-labelledby="translationTab">
@@ -92,13 +93,47 @@
       <p id="writingDestination" class="writing-privacy"></p>
 
       </section>
+      <section id="declaudishPanel" role="tabpanel" aria-labelledby="declaudishTab" hidden>
+        <section class="workspace-intro"><p class="eyebrow">LESS RHETORIC, SAME MEANING</p><h1>少些套话，意思更清楚。</h1><p class="subtitle">去除英文中的重复修辞和空泛表达，保留事实、条件与原意。</p></section>
+        <section class="workspace writing-workspace" aria-label="De-Claudish 工作台">
+          <div class="workspace-toolbar declaudish-toolbar"><h2>De-Claudish</h2><label class="run-mode-label">运行方式<select id="declaudishMode"><option value="cloud">官方 PAW 云端</option><option value="self">自部署 PAW</option><option value="model">自选大模型</option></select></label></div>
+          <div class="run-settings">
+            <div id="pawCloudSettings"><p class="settings-note">调用官方 Claudish 程序，无需下载模型。英文将发送至 PAW 官方服务；公共接口可匿名调用，有额度限制。</p><details><summary>可选：使用 PAW API Key</summary><label class="form-field">PAW API Key<input id="pawCloudKey" type="password" autocomplete="off" placeholder="匿名调用可留空；仅本页暂存"></label><a href="https://programasweights.com/settings" target="_blank" rel="noopener noreferrer">获取个人密钥 ↗</a></details></div>
+            <div id="pawSelfSettings" hidden>
+              <div class="connection-fields"><label class="form-field">PAW 服务地址<input id="pawUrl" type="url" value="http://127.0.0.1:8766" spellcheck="false"></label><label class="form-field">服务密钥（本机可留空）<input id="pawSelfKey" type="password" autocomplete="off" placeholder="局域网使用启动时配置的密钥"></label></div>
+              <div class="connection-actions"><button id="checkPaw" class="secondary-button">检测部署状态</button><button id="verifyPaw" class="secondary-button">加载并验证模型</button><button id="cancelPawCheck" class="subtle-button" hidden>停止等待</button></div>
+              <p id="pawHealth" class="settings-status" role="status">仅检测你填写的地址，不扫描局域网。请先启动下方连接服务。</p>
+              <details class="install-guide"><summary>首次使用？安装 PAW 与连接服务</summary>
+                <ol><li>安装 Python 3.10 或更新版本，在终端运行：<pre><code>python -m pip install programasweights --extra-index-url https://pypi.programasweights.com/simple/</code></pre></li>
+                <li><a href="./paw-bridge.py" download>下载译间 PAW 连接脚本</a>，在脚本所在文件夹运行：<pre><code>python paw-bridge.py</code></pre></li>
+                <li>保持终端运行，点击「检测部署状态」，再点击「加载并验证模型」。首次约下载 620MB 资源，可能需要几分钟；就绪后即可改写。</li></ol>
+                <p>浏览器无法直接检查已安装的软件。此脚本将网页连接到官方 PAW 程序；检测只检查服务，验证会运行一句固定示例。</p>
+                <details><summary>在局域网另一台电脑部署（Windows PowerShell）</summary><pre><code>$env:YIJIAN_PAW_KEY="替换为你自己的服务密钥"
+python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址（例如 http://192.168.1.100:8766）及相同密钥，并允许防火墙的专用网络访问。不要将服务暴露到公网。127.0.0.1 始终指当前浏览器所在设备。</p></details>
+                <p>默认允许本站来源 https://wang-kaijun.github.io；其他部署地址启动时添加 <code>--origin https://你的网页域名</code>。按浏览器提示允许本地网络访问。如无法连接，检查服务、地址和跨域设置，或使用官方云端。</p>
+                <p>支持 CPU 运行。NVIDIA 显卡加速需要带 CUDA 的 llama-cpp-python；安装成功不代表已启用 GPU。<a href="https://programasweights.readthedocs.io/en/latest/getting-started/installation/" target="_blank" rel="noopener noreferrer">官方安装说明 ↗</a></p>
+              </details>
+            </div>
+            <p id="declaudishModelNote" class="settings-note" hidden>使用所选模型执行 Claudish 改写规则；效果可能与原版 PAW 不同。模型在下方设置，可复用全局保存的站点。</p>
+          </div>
+          <div class="editor-grid">
+            <section class="editor-pane source-pane" aria-label="待改写的英文"><div class="pane-heading"><h2>英文原文 <span>English</span></h2><button id="clearDeclaudish" class="subtle-button">清空</button></div><label for="declaudishSource" class="visually-hidden">输入需要去除冗余修辞的英文</label><textarea id="declaudishSource" lang="en" spellcheck="false" maxlength="4000" placeholder="粘贴需要精简表达的英文…"></textarea><div class="source-footer"><button id="declaudishSample" class="sample-button">试一段示例 ↗</button><span id="declaudishCount">0 / 1,200 字符</span></div></section>
+            <section class="editor-pane result-pane" aria-label="De-Claudish 结果"><div class="pane-heading"><h2>直接表达 <span>保留原意</span></h2></div><div id="declaudishEmpty" class="empty-result"><p>让内容自己说话。</p><span>精简后的英文将在这里呈现</span></div><label for="declaudishResult" class="visually-hidden">英文改写结果</label><textarea id="declaudishResult" lang="en" readonly hidden></textarea><div class="result-footer"><span id="declaudishResultNote">请核对事实、条件与专业术语</span><button id="copyDeclaudish" class="subtle-button" disabled>复制英文</button></div></section>
+          </div>
+          <div class="action-bar"><button id="declaudishSettings" class="model-picker" aria-label="设置 De-Claudish 模型" hidden><span class="engine-icon" aria-hidden="true">✳</span><span class="model-picker-text"><span id="declaudishEngine" class="model-picker-label">本功能模型</span><span id="declaudishModelName" class="model-picker-name">设置模型</span></span><span class="model-picker-action">设置 ↗</span></button><span id="pawEngineLabel" class="settings-note">官方 Claudish → English</span><div class="translate-actions"><button id="stopDeclaudish" class="stop-button" hidden>停止</button><button id="runDeclaudish" class="primary-button" disabled>精简英文表达</button></div></div>
+        </section>
+        <div class="status-row"><p id="declaudishStatus" role="status" aria-live="polite">选择运行方式并输入英文。PAW 上下文较短，较长文本请分段处理。</p></div>
+        <p class="writing-privacy">改写规则与原版程序来自 <a href="https://github.com/programasweights/claudish" target="_blank" rel="noopener noreferrer">Claudish</a>（MIT）。本应用不保存原文或结果。切换运行方式不会自动发送文本。</p>
+      </section>
       <section id="globalPanel" role="tabpanel" aria-labelledby="globalTab" hidden>
         <section class="workspace-intro"><p class="eyebrow">YOUR SHARED MODEL</p><h1>全局模型</h1><p class="subtitle">在这里配置共用模型，由各功能分别决定是否使用。</p></section>
         <div class="global-layout">
           <div class="workspace global-settings" id="globalFormHost"></div>
           <aside class="override-card">
             <h2>各功能独立选择</h2>
-            <p>在翻译或润色的模型设置中，分别开启「使用全局模型」。关闭后，该功能恢复自己的模型配置。</p>
+            <p>站点地址、模型列表和密钥只需配置一次。各功能可选用已保存站点中的不同模型，或开启「使用全局模型」。De-Claudish 的此设置仅对「自选大模型」生效。</p>
+            <button id="deployLocalModel" class="secondary-button">部署本地模型</button>
+            <details id="localModelGuide" class="install-guide"><summary>本地模型安装与连接说明</summary><ol><li>从 <a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">Ollama 官网</a>安装并下载适合设备的模型。</li><li>设置环境变量 <code>OLLAMA_ORIGINS=https://wang-kaijun.github.io</code>，重启 Ollama。</li><li>选择「本地 / 局域网模型」，填写 <code>http://127.0.0.1:11434/v1</code>，点击获取模型列表并测试连接。</li></ol><p>局域网另一台电脑需配置监听地址（如 OLLAMA_HOST=0.0.0.0:11434）并允许专用网络防火墙访问，网页填写其局域网 IP。其他服务需提供 OpenAI 兼容接口，例如 http://192.168.1.100:8080/v1。</p><p>此选项提供安装引导，网页不会替你安装软件。浏览器可能请求本地网络权限；服务还需允许跨域访问。</p></details>
             <p id="globalUsage" role="status"></p>
           </aside>
         </div>
@@ -115,19 +150,25 @@
       <p id="effectiveGlobalSummary" class="settings-note" hidden></p>
     </div>
     <div id="profileFields">
-    <label class="form-field">服务商<select id="providerType"><option value="localai">LocalAI · 局域网默认</option><option value="modelscope">魔搭 ModelScope · Qwen3.8 Flash Next</option><option value="groq">Groq · GPT-OSS 120B</option><option value="openrouter">OpenRouter · Qwen3.8 27B 免费版</option><option value="siliconflow">硅基流动 · Xing4.0-29B 免费版</option><option value="deepseek">DeepSeek</option><option value="zai">Z.ai</option><option value="zhipu">智谱 BigModel · GLM-4.7-Flash 免费版</option><option value="custom">自定义 · OpenAI 兼容接口</option></select></label>
+    <label class="form-field">已保存的站点<select id="savedSite"></select><small id="savedSiteHint">站点在全局模型中统一管理。</small></label>
+    <div id="linkedSiteFields" hidden><label class="form-field">此功能使用的模型<input id="linkedModel" type="text" list="linkedModels" autocomplete="off" spellcheck="false"><datalist id="linkedModels"></datalist></label><p id="linkedSiteSummary" class="settings-note"></p><button id="manageSites" class="subtle-button">管理站点或补充密钥 ↗</button></div>
+    <div id="siteEditor">
+    <label id="siteNameField" class="form-field">站点名称<input id="siteName" maxlength="80" placeholder="例如：家中 Ollama / 常用云端"></label>
+    <label class="form-field">服务商<select id="providerType"><option value="localai">LocalAI · 局域网默认</option><option value="local">本地 / 局域网模型 · Ollama 等</option><option value="modelscope">魔搭 ModelScope · Qwen3.8 Flash Next</option><option value="groq">Groq · GPT-OSS 120B</option><option value="openrouter">OpenRouter · Qwen3.8 27B 免费版</option><option value="siliconflow">硅基流动 · Xing4.0-29B 免费版</option><option value="deepseek">DeepSeek</option><option value="zai">Z.ai</option><option value="zhipu">智谱 BigModel · GLM-4.7-Flash 免费版</option><option value="custom">自定义 · OpenAI 兼容接口</option></select></label>
     <p id="localSettingsNote" class="settings-note">使用此局域网服务配置的 LocalAI，默认模型为 Qwen3.8 Flash Next。无需填写个人 API Key。</p>
     <label id="localModelField" class="form-field">LocalAI 模型 ID<input id="localSettingsModel" type="text" autocomplete="off" spellcheck="false"></label>
     <div id="externalFields" hidden>
       <p id="providerHint" class="settings-note" hidden>Z.ai 当前接口在本站测试中未允许浏览器跨域访问（CORS），可能无法直连。此情况更换密钥无效，请使用支持浏览器直连的服务商；本应用不会通过代理中转你的密钥。</p>
-      <label class="form-field">API 地址<input id="externalUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://api.example.com/v1"><small>预设地址固定；自定义接口可填写 HTTPS 基础地址，末尾无需添加 /chat/completions。</small></label>
+      <label class="form-field">API 地址<input id="externalUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://api.example.com/v1"><small>填写基础地址，末尾无需添加 /chat/completions。本地模型支持 HTTP；云端使用 HTTPS。</small></label>
       <label class="form-field">模型 ID<input id="externalModel" type="text" autocomplete="off" spellcheck="false" placeholder="输入你的账户可用的模型 ID" list="modelSuggestions"><datalist id="modelSuggestions"></datalist></label>
+      <div id="siteModelsField"><div class="test-row"><button id="fetchModels" class="secondary-button">获取模型列表</button><span>仅读取此站点的模型</span></div><label class="form-field">可复用的模型列表<textarea id="siteModels" rows="3" placeholder="每行一个模型 ID，也可自动获取"></textarea></label></div>
       <label class="form-field">API Key<div class="key-field"><input id="externalKey" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴你自己的 API Key" autocapitalize="off" data-lpignore="true"><button id="showKey" class="subtle-button" type="button">显示</button></div></label>
       <div class="key-options"><label><input id="rememberKey" type="checkbox"> 记住到此浏览器</label><a id="getKey" target="_blank" rel="noopener noreferrer" hidden>获取 API Key ↗</a></div>
-      <p class="settings-note">默认刷新即清除密钥。勾选后仅保存在此浏览器的本站存储中，可随时清除。请求由浏览器通过 HTTPS 直接发送至所选服务商；密钥不经过本应用服务器，不写入 GitHub，也不与其他用户共享。共享设备请勿勾选。</p>
+      <p class="settings-note">默认刷新即清除密钥。勾选后保存在此浏览器的本站存储中。选用同一站点的功能共享该站点密钥；密钥不写入 GitHub。本地无鉴权接口可留空，局域网 HTTP 请求未加密。</p>
       <p class="settings-note">免费额度、模型权限与超额费用以服务商账户为准。接口需要支持浏览器跨域访问；网络或地区限制可能影响连接。</p>
       <button id="clearKeys" class="subtle-button" type="button">清除本浏览器保存的全部密钥</button>
       <div class="test-row"><button id="testProvider" class="secondary-button">测试接口</button><span>仅发送一句示例文字</span></div>
+    </div>
     </div>
     </div>
     <p id="settingsStatus" class="settings-status" role="status" aria-live="polite"></p>

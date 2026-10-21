@@ -3,6 +3,8 @@ dist/
 public/app.js
 public/app.js.LEGAL.txt
 public/licenses.txt
+public/paw-bridge.py
+__pycache__/
 *.log
 .env
 .env.*

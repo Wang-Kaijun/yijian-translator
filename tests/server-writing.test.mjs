@@ -13,7 +13,8 @@ test('LocalAI gateway validates writing input, uses server credentials and prese
     const chunks = []; for await (const chunk of req) chunks.push(chunk);
     const payload = JSON.parse(Buffer.concat(chunks)); requests.push({ payload, auth: req.headers.authorization });
     const input = JSON.parse(payload.messages[1].content);
-    res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(input.text ? review : { translations: [{ id: 'a', text: '你好。' }] }) }, finish_reason: 'stop' }] }));
+    const content = payload.messages[0].content.includes('Preserve logical scope exactly') ? 'Only owners can merge.' : JSON.stringify(input.text ? review : { translations: [{ id: 'a', text: '你好。' }] });
+    res.end(JSON.stringify({ choices: [{ message: { content }, finish_reason: 'stop' }] }));
   });
   await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve));
   // Ask the OS for an ephemeral gateway port before launching the child.
@@ -33,5 +34,9 @@ test('LocalAI gateway validates writing input, uses server credentials and prese
     assert.equal(requests.length, 1);
     response = await post('/api/translate', { provider: { type: 'localai' }, model: 'test-default', target: 'zh', items: [{ id: 'a', text: 'Hello.' }] });
     assert.equal(response.status, 200); assert.deepEqual((await response.json()).translations, [{ id: 'a', text: '你好。' }]);
+    response = await post('/api/declaudish', { ...request, text: 'The key distinction is this: only owners can merge.' });
+    assert.equal(response.status, 200); assert.equal((await response.json()).output, 'Only owners can merge.');
+    assert.equal(requests.at(-1).auth, 'Bearer test-only-server-key');
+    response = await post('/api/declaudish', request, { Origin: 'https://untrusted.example' }); assert.equal(response.status, 403);
   } finally { child.kill(); await ended; await new Promise(resolve => upstream.close(resolve)); }
 });

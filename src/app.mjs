@@ -1,7 +1,8 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { createPlan, acceptTranslations, renderPlan, pendingBatches, previewSource, detectDirection } from './translation.mjs';
-import { PROVIDERS as presets, validateExternalProvider } from '../providers.mjs';
+import { setupModelSettings } from './model-settings.mjs';
+import { setupDeclaudish } from './declaudish-ui.mjs';
 import { createProfiles } from './profiles.mjs';
 import { setupWriting } from './writing-ui.mjs';
 import { translateWithProvider } from './api.mjs';
@@ -13,7 +14,7 @@ const staticApp = typeof __STATIC_APP__ !== 'undefined' && __STATIC_APP__;
 let browserStorage; try { browserStorage = localStorage; } catch {}
 const appPath = new URL('.', location.href).pathname;
 const profiles = createProfiles(browserStorage, appPath, staticApp ? 'modelscope' : 'localai');
-let settingsScope = 'translation', writingBusy = false, activeWorkspace = 'translation';
+let settingsUI, writingBusy = false, declaudishBusy = false, activeWorkspace = 'translation';
 let providerConfig = profiles.effective('translation');
 function activeModel() { return providerConfig.model; }
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -55,9 +56,7 @@ function setBusy(value) {
   syncSettingsBusy();
 }
 
-function syncSettingsBusy() {
-  for (const id of ['settings', 'writingSettings', 'featureOverride', 'applySettings', 'testProvider', 'clearKeys']) $(id).disabled = busy || writingBusy;
-}
+function syncSettingsBusy() { settingsUI?.syncBusy(); }
 
 function resetOutput() {
   plan = null; planKey = ''; output = ''; complete = false;
@@ -135,7 +134,7 @@ async function translateBatch(items, signal) {
 
 async function translate() {
   if (busy || !$('source').value.trim()) return;
-  if (providerConfig.type !== 'localai' && !providerConfig.apiKey) { openEffectiveSettings('translation'); settingsError(new Error('请先填写你自己的 API Key。')); return; }
+  if (!['localai', 'local'].includes(providerConfig.type) && !providerConfig.apiKey) { openEffectiveSettings('translation'); settingsError(new Error('请先填写你自己的 API Key。')); return; }
   if (new TextEncoder().encode($('source').value).length > MAX_BYTES) { status('内容超过 2 MB，请分成较小的文档。', true); return; }
   const key = JSON.stringify([mode, $('direction').value, providerConfig.type, providerConfig.baseUrl, activeModel(), $('source').value]);
   try {
@@ -214,7 +213,7 @@ $('download').addEventListener('click', () => {
   toast(`已生成 ${name}`);
 });
 document.addEventListener('keydown', event => { if (activeWorkspace === 'translation' && !$('settingsDialog').open && (event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); translate(); } });
-window.addEventListener('beforeunload', event => { if (busy || writingBusy) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('beforeunload', event => { if (busy || writingBusy || declaudishBusy) { event.preventDefault(); event.returnValue = ''; } });
 
 function syncThemeButton() {
   const dark = document.documentElement.dataset.theme === 'dark';
@@ -232,159 +231,21 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', eve
   if (!saved) { document.documentElement.dataset.theme = event.matches ? 'dark' : 'light'; syncThemeButton(); }
 });
 
-function settingsFields() {
-  const type = $('providerType').value;
-  const external = type !== 'localai';
-  $('externalFields').hidden = !external; $('localSettingsNote').hidden = external;
-  $('localModelField').hidden = external;
-  $('localSettingsModel').value = (profiles.own(settingsScope).type === 'localai' ? profiles.own(settingsScope).model : 'qwen3.8-flash-next-strata');
-  $('settingsStatus').textContent = ''; $('settingsStatus').classList.remove('error');
-  $('externalKey').type = 'password'; $('showKey').textContent = '显示';
-  if (external) {
-    const hint = presets[type].hint || (type === 'zai' ? 'Z.ai 当前接口在本站测试中未允许浏览器跨域访问（CORS），可能无法直连。此情况更换密钥无效，请使用支持浏览器直连的服务商；本应用不会通过代理中转你的密钥。' : '');
-    $('providerHint').textContent = hint;
-    $('providerHint').hidden = !hint;
-    const own = profiles.own(settingsScope);
-    const saved = own?.type === type ? own : profiles.initial(settingsScope, type);
-    $('externalUrl').value = saved.baseUrl; $('externalModel').value = saved.model;
-    $('externalKey').value = saved.apiKey || '';
-    $('rememberKey').checked = Boolean(saved.remember);
-    $('externalUrl').readOnly = type !== 'custom';
-    $('getKey').hidden = !presets[type].keyUrl;
-    if (presets[type].keyUrl) $('getKey').href = presets[type].keyUrl;
-  }
-  $('modelSuggestions').replaceChildren(...(presets[type]?.models || []).map(value => { const option = document.createElement('option'); option.value = value; return option; }));
-}
 
-function syncProviderUI() {
-  providerConfig = profiles.effective('translation');
-  for (const [scope, label, model] of [['translation', 'engineLabel', 'modelName'], ['writing', 'writingEngine', 'writingModelName']]) {
-    const config = profiles.effective(scope);
-    $(label).textContent = (profiles.isOverridden(scope) ? '使用全局模型' : '本功能模型') + ' · ' + (presets[config.type]?.name || 'LocalAI');
-    $(model).textContent = config.model || '请设置模型';
-  }
-  const destination = config => config.type === 'localai' ? 'LocalAI（局域网）' : config.baseUrl ? new URL(config.baseUrl).hostname : '所选接口';
-  $('privacyDestination').textContent = '待译文本仅发送至 ' + destination(providerConfig);
-  $('writingDestination').textContent = '待检查英文仅发送至 ' + destination(profiles.effective('writing')) + '。本应用不保存英文内容或检查结果。';
-  $('globalUsage').textContent = ['translation', 'writing'].map(scope => (scope === 'translation' ? '翻译：' : '润色：') + (profiles.isOverridden(scope) ? '使用全局模型' : '使用独立模型')).join('；');
-}
-function syncFeatureOverride() {
-  const inherited = settingsScope !== 'global' && $('featureOverride').checked;
-  $('featureOverrideControl').hidden = settingsScope === 'global';
-  $('profileFields').hidden = inherited;
-  $('effectiveGlobalSummary').hidden = !inherited;
-  const config = profiles.own('global');
-  $('effectiveGlobalSummary').textContent = '当前全局模型：' + (presets[config.type]?.name || 'LocalAI') + ' · ' + config.model + '。可在「全局模型」标签页修改。';
-}
-function loadSettingsScope(scope) {
-  settingsScope = scope;
-  $('settingsTitle').textContent = { translation: '翻译模型', writing: '语法与润色模型', global: '全局模型配置' }[scope];
-  $('providerType').value = profiles.own(scope).type;
-  $('clearKeys').textContent = scope === 'global' ? '清除全局配置保存的密钥' : '清除此功能保存的密钥';
-  $('featureOverride').checked = profiles.isOverridden(scope);
-  settingsFields();
-  syncFeatureOverride();
-}
-function openSettings(scope = 'translation') {
-  if (busy || writingBusy || settingsController) return;
-  $('settingsDialog').append($('settingsForm'));
-  loadSettingsScope(scope);
-  $('settingsDialog').showModal();
-}
-function openEffectiveSettings(scope) {
-  if (profiles.isOverridden(scope)) switchWorkspace('global');
-  else openSettings(scope);
-}
-function switchWorkspace(scope, focus = false) {
-  if (!['translation', 'writing', 'global'].includes(scope)) return;
-  settingsController?.abort();
-  activeWorkspace = scope;
-  for (const tab of document.querySelectorAll('[data-workspace]')) {
-    const selected = tab.dataset.workspace === scope;
-    tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
-    $(tab.getAttribute('aria-controls')).hidden = !selected;
-    if (selected && focus) tab.focus();
-  }
-  if (scope === 'global') {
-    $('globalFormHost').append($('settingsForm')); loadSettingsScope('global');
-  } else if ($('globalFormHost').contains($('settingsForm'))) {
-    $('externalKey').value = ''; $('settingsDialog').append($('settingsForm'));
-  }
-  syncSettingsBusy();
-}
-for (const tab of document.querySelectorAll('[data-workspace]')) {
-  tab.addEventListener('click', () => switchWorkspace(tab.dataset.workspace));
-  tab.addEventListener('keydown', event => {
-    const tabs = [...document.querySelectorAll('[data-workspace]')];
-    let index = tabs.indexOf(tab);
-    if (event.key === 'ArrowRight') index = (index + 1) % tabs.length;
-    else if (event.key === 'ArrowLeft') index = (index + tabs.length - 1) % tabs.length;
-    else if (event.key === 'Home') index = 0;
-    else if (event.key === 'End') index = tabs.length - 1;
-    else return;
-    event.preventDefault(); switchWorkspace(tabs[index].dataset.workspace, true);
-  });
-}
-$('featureOverride').addEventListener('change', syncFeatureOverride);
-function readSettings() {
-  const type = $('providerType').value;
-  if (type === 'localai' && !staticApp) {
-    const model = $('localSettingsModel').value.trim();
-    if (!model || model.length > 200 || /[\r\n]/.test(model)) throw new Error('请填写有效的 LocalAI 模型 ID。');
-    return { type, model };
-  }
-  return validateExternalProvider({ type, baseUrl: $('externalUrl').value.trim(), model: $('externalModel').value, apiKey: $('externalKey').value });
-}
-function settingsError(error) { $('settingsStatus').textContent = error.message; $('settingsStatus').classList.add('error'); }
-let settingsController = null;
-function closeSettings() { settingsController?.abort(); if ($('settingsDialog').open) { $('settingsDialog').close(); $('externalKey').value = ''; } }
-$('settings').addEventListener('click', () => openSettings('translation'));
-$('closeSettings').addEventListener('click', closeSettings);
-$('cancelSettings').addEventListener('click', closeSettings);
-$('settingsDialog').addEventListener('close', () => { settingsController?.abort(); $('externalKey').value = ''; $('externalKey').type = 'password'; });
-$('providerType').addEventListener('change', () => settingsFields());
-$('externalUrl').addEventListener('input', () => { $('externalKey').value = ''; $('rememberKey').checked = false; $('settingsStatus').textContent = '接口地址已更改，请重新填写此接口的密钥。'; });
-$('showKey').addEventListener('click', () => { const show = $('externalKey').type === 'password'; $('externalKey').type = show ? 'text' : 'password'; $('showKey').textContent = show ? '隐藏' : '显示'; });
-$('clearKeys').addEventListener('click', () => {
-  try {
-    profiles.clearKeys(settingsScope);
-    $('externalKey').value = ''; $('rememberKey').checked = false;
-    syncProviderUI();
-    $('settingsStatus').classList.remove('error');
-    $('settingsStatus').textContent = '已清除当前配置在本页及此浏览器保存的密钥。';
-  } catch (error) { syncProviderUI(); settingsError(error); }
-});
-$('applySettings').addEventListener('click', () => {
-  try {
-    const previousTranslation = JSON.stringify(profiles.effective('translation'));
-    if (busy || writingBusy) return;
-    const inherited = settingsScope !== 'global' && $('featureOverride').checked;
-    if (!inherited) profiles.save(settingsScope, readSettings(), $('rememberKey').checked);
-    if (settingsScope !== 'global') profiles.setOverride(settingsScope, inherited);
-    syncProviderUI();
-    if (JSON.stringify(profiles.effective('translation')) !== previousTranslation) { resetOutput(); status('翻译模型已更新，准备翻译。'); }
-    languageLabels(); closeSettings();
-    toast(`已保存${{ global: '全局模型', translation: '翻译模型', writing: '语法与润色模型' }[settingsScope]}设置`);
-    if (settingsScope === 'global') $('settingsStatus').textContent = '全局模型已保存。仅对开启「使用全局模型」的功能生效。';
-  } catch (error) { settingsError(error); }
-});
-$('testProvider').addEventListener('click', async () => {
-  if (settingsController || busy || writingBusy) return;
-  try {
-    const config = readSettings();
-    settingsController = new AbortController();
-    for (const id of ['testProvider', 'applySettings', 'providerType', 'externalUrl', 'externalModel', 'externalKey', 'clearKeys', 'rememberKey', 'featureOverride']) $(id).disabled = true;
-    $('settingsStatus').classList.remove('error'); $('settingsStatus').textContent = '浏览器正在直连接口并验证示例翻译…';
-    const translations = await translateWithProvider({ provider: config, model: config.model, target: 'zh', items: [{ id: 'test', text: 'Hello. Welcome to the translation workspace.' }], signal: settingsController.signal, allowLocal: !staticApp });
-    $('settingsStatus').textContent = `接口可用 · ${translations[0].text}`;
-  } catch (error) { if (error.name !== 'AbortError') settingsError(error); }
-  finally {
-    settingsController = null;
-    for (const id of ['testProvider', 'applySettings', 'providerType', 'externalUrl', 'externalModel', 'externalKey', 'clearKeys', 'rememberKey', 'featureOverride']) $(id).disabled = false;
-    syncSettingsBusy();
-  }
-});
-if (staticApp) $('providerType').querySelector('[value="localai"]')?.remove();
-setupWriting({ getProvider: () => profiles.effective('writing'), allowLocal: !staticApp, openSettings: scope => openEffectiveSettings(scope), configure: openSettings, toast,
+settingsUI = setupModelSettings({ profiles, staticApp, isBusy: () => busy || writingBusy || declaudishBusy,
+  onWorkspace: scope => { activeWorkspace = scope; }, toast,
+  onChange: () => {
+    const changed = JSON.stringify(providerConfig) !== JSON.stringify(profiles.effective('translation'));
+    providerConfig = profiles.effective('translation');
+    if (changed) { resetOutput(); status('翻译模型已更新，准备翻译。'); }
+    languageLabels();
+  } });
+function openEffectiveSettings(scope) { settingsUI.openEffective(scope); }
+function settingsError(error) { settingsUI.error(error); }
+setupWriting({ getProvider: () => profiles.effective('writing'), allowLocal: !staticApp,
+  openSettings: openEffectiveSettings, configure: scope => settingsUI.open(scope), toast,
   onBusy: value => { writingBusy = value; syncSettingsBusy(); } });
-syncThemeButton(); syncProviderUI(); languageLabels();
+setupDeclaudish({ storage: browserStorage, path: appPath, getProvider: () => profiles.effective('declaudish'), allowLocal: !staticApp,
+  openSettings: openEffectiveSettings, configure: scope => settingsUI.open(scope), toast,
+  onBusy: value => { declaudishBusy = value; syncSettingsBusy(); } });
+syncThemeButton(); languageLabels();
