@@ -59,3 +59,6 @@
 .workspace-intro .subtitle{margin:0;max-width:none;color:#7f9279;font-size:12px;line-height:22px}
 [data-theme=dark] .workspace-intro .subtitle{color:#9bb189}
 @media(max-width:680px){.workspace-intro{grid-template-rows:10px minmax(72px,auto) minmax(44px,auto);padding:28px 0 24px}.workspace-intro .eyebrow{font-size:8px;line-height:10px}.workspace-intro h1{font-size:24px;line-height:36px}}
+
+/* Keep model selection visibly distinct from manual ID entry. */
+.form-field select[id$="ModelChoice"],.form-field #localSettingsModelChoice{appearance:auto;min-height:44px;width:100%;min-width:0;padding-right:12px}
