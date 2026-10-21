@@ -39,7 +39,7 @@
 
 全局模型页的「部署本地模型」提供安装引导，并预填 Ollama 地址 `http://127.0.0.1:11434/v1`。也可填写 `http://192.168.1.100:8080/v1` 等 OpenAI 兼容地址。本地无鉴权接口可留空 API Key；密钥不从云端站点自动带入。
 
-Ollama 需要配置 `OLLAMA_ORIGINS=https://wang-kaijun.github.io` 并重启；供其他设备访问时还需配置监听地址及防火墙。GitHub Pages 访问本机或局域网依赖浏览器本地网络权限和服务端 CORS；兼容性受浏览器版本影响。`127.0.0.1` 指当前浏览器所在设备。HTTP 只允许显式本地模式的回环/局域网地址，云端仍需 HTTPS；服务器不代理用户指定的地址。
+Ollama 需要配置 `OLLAMA_ORIGINS=https://wang-kaijun.github.io` 并重启；供其他设备访问时还需配置监听地址及防火墙。GitHub Pages 访问本机或局域网依赖浏览器本地网络权限和服务端 CORS；兼容性受浏览器版本影响。`127.0.0.1` 指当前浏览器所在设备。「自定义接口」和「本地 / 局域网模型」均支持回环/局域网 HTTP 地址，并允许无鉴权服务留空密钥；公网接口仍需 HTTPS；服务器不代理用户指定的地址。
 
 模型可能误判语法或改变细微含义，请结合上下文核对。接口结果不完整或被截断时会提示重试或缩短输入。
 
@@ -61,7 +61,7 @@ Ollama 需要配置 `OLLAMA_ORIGINS=https://wang-kaijun.github.io` 并重启；�
 | DeepSeek | `deepseek-flash` | `https://api.deepseek.com` |
 | Z.ai | `glm-5.3` | `https://api.z.ai/api/paas/v4` |
 | 智谱 | `glm-4.7-flash` | `https://open.bigmodel.cn/api/paas/v4` |
-| 自定义 | 自行填写 | 支持浏览器跨域访问的 HTTPS、OpenAI Chat Completions 兼容接口 |
+| 自定义 | 自行填写 | 支持浏览器跨域访问的 OpenAI Chat Completions 兼容接口；公网 HTTPS，本机 / 局域网也支持 HTTP |
 
 OpenRouter、硅基流动和智谱默认选择核对于 2026-10-15 的免费模型；免费模型仍有限流，政策以服务商为准。已有浏览器保存的模型设置不会自动覆盖，智谱老用户可将模型 ID 改为 `glm-4.7-flash`。
 

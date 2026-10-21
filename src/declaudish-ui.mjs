@@ -1,3 +1,4 @@
+import { isLocalProvider } from '../providers.mjs';
 import { declaudishWithProvider } from './api.mjs';
 import { pawRequest } from './paw.mjs';
 import { validateDeclaudishInput } from '../declaudish.mjs';
@@ -36,7 +37,7 @@ export function setupDeclaudish({ storage, path, getProvider, allowLocal, config
     const mode = $('declaudishMode').value, text = $('declaudishSource').value;
     try { validateDeclaudishInput(text, mode); } catch (e) { status(e.message, true); return; }
     const provider = { ...getProvider() };
-    if (mode === 'model' && !['localai', 'local'].includes(provider.type) && !provider.apiKey) { openSettings('declaudish'); status('请先补充所选站点的 API Key。', true); return; }
+    if (mode === 'model' && provider.type !== 'localai' && !isLocalProvider(provider) && !provider.apiKey) { openSettings('declaudish'); status('请先补充所选站点的 API Key。', true); return; }
     reset(); const signal = start(); $('stopDeclaudish').hidden = false; status('正在精简英文表达…');
     try {
       const output = mode === 'model' ? await declaudishWithProvider({ provider, model: provider.model, text, signal, allowLocal }) : await pawRequest({ mode, baseUrl: $('pawUrl').value, apiKey: mode === 'cloud' ? $('pawCloudKey').value.trim() : $('pawSelfKey').value.trim(), text, signal });

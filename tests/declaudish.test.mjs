@@ -10,7 +10,7 @@ test('explicit local provider supports optional keys without weakening cloud end
   assert.equal(validateExternalProvider(local).apiKey, '');
   for (const baseUrl of ['http://192.168.1.9:8080/v1', 'http://10.0.0.8/v1', 'https://box.local/v1', 'http://[::1]:8080/v1']) assert.doesNotThrow(() => validateExternalProvider({ ...local, baseUrl }));
   for (const baseUrl of ['http://example.com/v1', 'http://127.example.com', 'http://10.example.com', 'http://192.168.example.com', 'http://169.254.169.254', 'http://0.0.0.0', 'http://localhost/v1?key=secret', 'http://user:secret@localhost']) assert.throws(() => validateExternalProvider({ ...local, baseUrl }));
-  assert.throws(() => validateExternalProvider({ ...local, type: 'custom', apiKey: 'x' }));
+  assert.doesNotThrow(() => validateExternalProvider({ ...local, type: 'custom', apiKey: '' }));
   assert.deepEqual(browserNetworkOptions(local.baseUrl), { targetAddressSpace: 'loopback' });
 });
 

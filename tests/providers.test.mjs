@@ -10,8 +10,8 @@ test('provider presets use exact origins and explicit per-request credentials', 
   assert.throws(() => validateExternalProvider({ type: 'deepseek', baseUrl: 'https://api.deepseek.com' }, 'model'));
 });
 
-test('custom API cannot target private services or put credentials into a URL', () => {
-  for (const url of ['http://example.com', 'https://127.0.0.1', 'https://[::1]', 'https://[::ffff:127.0.0.1]', 'https://192.168.1.2', 'https://169.254.169.254', 'https://10.0.0.1', 'https://localhost', 'https://router.local', 'https://example.com?key=secret', 'https://user:secret@example.com']) {
+test('custom API rejects public HTTP, unsupported addresses and URL credentials', () => {
+  for (const url of ['http://example.com', 'https://[::ffff:127.0.0.1]', 'https://169.254.169.254', 'https://example.com?key=secret', 'https://user:secret@example.com']) {
     assert.throws(() => validateExternalProvider({ type: 'custom', baseUrl: url, apiKey: 'test' }, 'model'), url);
   }
   assert.equal(validateExternalProvider({ type: 'custom', baseUrl: 'https://example.com/v1/', apiKey: 'test' }, 'example-model').baseUrl, 'https://example.com/v1');
@@ -30,4 +30,14 @@ test('reasoning parameters respect provider and model differences', () => {
   assert.equal(generationOptions('zai', 'glm-5.3').reasoning_effort, 'low');
   assert.equal(generationOptions('zai', 'glm-5').thinking.type, 'disabled');
   assert.deepEqual(generationOptions('custom', 'anything'), { max_tokens: 8192 });
+});
+
+test('custom endpoints recognize local HTTP without requiring a key', () => {
+  for (const baseUrl of ['http://127.0.0.1:11434/v1', 'http://192.168.1.100:8080/v1', 'http://10.0.0.1/v1', 'http://172.16.0.1/v1', 'http://[::1]:8080/v1', 'http://box.lan/v1', 'https://router.local/v1']) {
+    assert.equal(validateExternalProvider({ type: 'custom', baseUrl, model: 'test' }).apiKey, '');
+  }
+  for (const baseUrl of ['http://127.example.com/v1', 'http://192.168.example.com/v1', 'http://172.32.0.1/v1', 'http://169.254.169.254/v1', 'http://user:secret@localhost/v1', 'http://localhost/v1?key=x']) {
+    assert.throws(() => validateExternalProvider({ type: 'custom', baseUrl, model: 'test', apiKey: 'test' }));
+  }
+  assert.throws(() => validateExternalProvider({ type: 'custom', baseUrl: 'https://example.com/v1', model: 'test' }));
 });

@@ -24,17 +24,18 @@ export function validateExternalProvider(provider, model = provider?.model) {
   const preset = Object.hasOwn(PROVIDERS, provider?.type) && PROVIDERS[provider.type];
   if (!preset) throw new Error('请选择有效的服务商。');
   let url;
-  try { url = new URL(provider.baseUrl); } catch { throw new Error('请输入有效的 HTTPS API 地址。'); }
-  if ((provider.type === 'local' ? !['http:', 'https:'].includes(url.protocol) : url.protocol !== 'https:') || url.username || url.password || url.search || url.hash) throw new Error('API 地址无效：云端需使用 HTTPS，地址不能含密钥或查询参数。');
+  try { url = new URL(provider.baseUrl); } catch { throw new Error('请输入有效的 API 地址（包含 http:// 或 https://）。'); }
+  const local = isLocalProvider(provider);
+  if ((local ? !['http:', 'https:'].includes(url.protocol) : url.protocol !== 'https:') || url.username || url.password || url.search || url.hash) throw new Error('API 地址无效：公网接口需使用 HTTPS，本机或局域网可使用 HTTP，地址不能含密钥或查询参数。');
   const host = url.hostname.toLowerCase();
   if (provider.type === 'local') {
     if (!localAddressSpace(url)) throw new Error('本地模型请填写 localhost、本机回环地址、局域网 IP 或 .local/.lan 主机名。');
-  } else if (host === 'localhost' || /\.(localhost|local|internal|lan)$/.test(host) || ((host.includes(':') || /^[\d.]+$/.test(host)) && !isPublicAddress(host))) throw new Error('外部接口需要使用公开的 HTTPS 地址。');
+  } else if (!local && (host === 'localhost' || /\.(localhost|local|internal|lan)$/.test(host) || ((host.includes(':') || /^[\d.]+$/.test(host)) && !isPublicAddress(host)))) throw new Error('外部接口需要使用公开的 HTTPS 地址。');
   const baseUrl = url.href.replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
   // Pin the entire preset endpoint, not just its host. A saved key cannot be redirected to another path.
   if (!['custom', 'local'].includes(provider.type) && baseUrl !== preset.baseUrl) throw new Error('地址与所选服务商不符，请重新选择服务商。');
   const apiKey = typeof provider.apiKey === 'string' ? provider.apiKey.trim() : '';
-  if ((!apiKey && provider.type !== 'local') || apiKey.length > 4096 || (apiKey && !/^[\x21-\x7e]+$/.test(apiKey))) throw new Error('请填写有效的 API Key。');
+  if ((!apiKey && !local) || apiKey.length > 4096 || (apiKey && !/^[\x21-\x7e]+$/.test(apiKey))) throw new Error('请填写有效的 API Key。');
   if (typeof model !== 'string' || !model.trim() || model.length > 200 || /[\r\n]/.test(model)) throw new Error('请填写有效的模型 ID。');
   return { type: provider.type, baseUrl, apiKey, model: model.trim(), name: preset.name };
 }
@@ -47,6 +48,10 @@ export function localAddressSpace(value) {
   if (host === 'localhost' || host.endsWith('.localhost') || host === '::1' || (ipv4 && /^127\./.test(host))) return 'loopback';
   if ((ipv4 && /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)) || /^(fc|fd)[a-f\d]{2}:/.test(host) || /\.(local|lan|internal)$/.test(host)) return 'local';
   return null;
+}
+
+export function isLocalProvider(provider) {
+  return ['local', 'custom'].includes(provider?.type) && Boolean(localAddressSpace(provider?.baseUrl));
 }
 
 export function browserNetworkOptions(baseUrl) {
