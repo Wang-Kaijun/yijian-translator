@@ -10,7 +10,7 @@
   <title>译间 · 中英翻译与英文润色</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <script src="./theme.js?v=2d2b27346b911226"></script>
-  <link rel="stylesheet" href="./style.css?v=3ac6dfbbb31ce58e">
+  <link rel="stylesheet" href="./style.css?v=6f0f523bc9199464">
   <script type="module" src="./app.js?v=dbcf7f15800030af"></script>
 </head>
 <body>
@@ -26,9 +26,8 @@
         <button id="globalTab" role="tab" aria-selected="false" aria-controls="globalPanel" tabindex="-1" data-workspace="global">全局模型</button>
       </nav>
       <section id="translationPanel" role="tabpanel" aria-labelledby="translationTab">
-      <section class="intro">
-        <div><p class="eyebrow">YOUR LANGUAGE WORKSPACE</p><h1>文字跨越语言，<span>格式保持原样。</span></h1><p class="subtitle">英文与中文，自然互译。也为你的 Markdown 留住结构。</p></div>
-        <div class="language-stamp" aria-hidden="true"><span>En</span><span class="stamp-line">↔</span><span>中</span></div>
+      <section class="workspace-intro">
+        <p class="eyebrow">YOUR LANGUAGE WORKSPACE</p><h1>文字跨越语言，<span>格式保持原样。</span></h1><p class="subtitle">英文与中文，自然互译。也为你的 Markdown 留住结构。</p>
       </section>
       <section class="workspace" aria-label="翻译工作台">
         <div class="workspace-toolbar">
@@ -68,7 +67,7 @@
       <aside class="privacy-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6zM8 12l3 3 5-6"/></svg><p><strong>文件留在你的浏览器。</strong> 读取、分段、预览与下载均在本地完成。<span id="privacyDestination">仅待译文本直接发送至所选模型服务商</span>，本应用不保存原文、译文或文件。</p></aside>
       </section>
       <section id="writingPanel" role="tabpanel" aria-labelledby="writingTab" hidden>
-      <section class="writing-intro" aria-labelledby="writingTitle"><p class="eyebrow">REFINE YOUR ENGLISH</p><h2 id="writingTitle">让英文表达，更进一步。</h2><p>先检查语法，再考虑润色。中文解释每处问题，英文版本一键复制。</p></section>
+      <section class="workspace-intro" aria-labelledby="writingTitle"><p class="eyebrow">REFINE YOUR ENGLISH</p><h1 id="writingTitle">让英文表达，更进一步。</h1><p class="subtitle">先检查语法，再考虑润色。中文解释每处问题，英文版本一键复制。</p></section>
       <section class="workspace writing-workspace" aria-label="英文语法与润色工作台">
         <div class="workspace-toolbar"><h2>英文语法与润色</h2><span class="writing-hint">保留原意 · 按需润色</span></div>
         <div class="editor-grid">
@@ -94,7 +93,7 @@
 
       </section>
       <section id="globalPanel" role="tabpanel" aria-labelledby="globalTab" hidden>
-        <section class="writing-intro"><p class="eyebrow">YOUR SHARED MODEL</p><h2>全局模型</h2><p>在这里配置共用模型，由各功能分别决定是否使用。</p></section>
+        <section class="workspace-intro"><p class="eyebrow">YOUR SHARED MODEL</p><h1>全局模型</h1><p class="subtitle">在这里配置共用模型，由各功能分别决定是否使用。</p></section>
         <div class="global-layout">
           <div class="workspace global-settings" id="globalFormHost"></div>
           <aside class="override-card">

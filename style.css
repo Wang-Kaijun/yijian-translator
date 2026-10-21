@@ -47,3 +47,12 @@
 [data-theme=dark] .override-heading input:checked{background:#608a4d}
 @media(max-width:800px){.global-layout{grid-template-columns:1fr;gap:16px}.override-card{grid-row:1}.global-settings{padding:21px}}
 @media(max-width:680px){.workspace-tabs{gap:0;padding-top:12px}.workspace-tabs button{padding:13px 14px;font-size:12px;flex:1}.model-picker{width:100%;max-width:100%;padding:10px 12px}.model-picker-action{margin-left:auto}.action-bar{align-items:stretch}.translate-actions{margin-left:auto}.model-picker .engine-icon{display:grid}.model-picker-label{font-size:10px}.model-picker-name{font-size:12px}#writingPanel .writing-intro,#globalPanel .writing-intro{padding:28px 0 24px}#writingPanel .writing-intro h2,#globalPanel .writing-intro h2{font-size:24px}}
+
+/* Shared title grid keeps all workspace panels aligned, including wrapped mobile titles. */
+.workspace-intro{display:grid;grid-template-rows:12px minmax(42px,auto) minmax(22px,auto);gap:10px;padding:36px 3px 30px}
+.workspace-intro .eyebrow{margin:0;font-size:10px;line-height:12px}
+.workspace-intro h1{margin:0;font-size:28px;font-weight:600;line-height:42px;letter-spacing:-.5px}
+.workspace-intro h1 span{display:inline}
+.workspace-intro .subtitle{margin:0;max-width:none;color:#7f9279;font-size:12px;line-height:22px}
+[data-theme=dark] .workspace-intro .subtitle{color:#9bb189}
+@media(max-width:680px){.workspace-intro{grid-template-rows:10px minmax(72px,auto) minmax(44px,auto);padding:28px 0 24px}.workspace-intro .eyebrow{font-size:8px;line-height:10px}.workspace-intro h1{font-size:24px;line-height:36px}}
