@@ -2,7 +2,8 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { createPlan, acceptTranslations, renderPlan, pendingBatches, previewSource, detectDirection } from './translation.mjs';
 import { PROVIDERS as presets, validateExternalProvider } from '../providers.mjs';
-import { createCredentialStore } from './credentials.mjs';
+import { createProfiles } from './profiles.mjs';
+import { setupWriting } from './writing-ui.mjs';
 import { translateWithProvider } from './api.mjs';
 
 const $ = id => document.getElementById(id);
@@ -11,14 +12,11 @@ let controller = null, startedAt = 0, toastTimer, previewTimer;
 const staticApp = typeof __STATIC_APP__ !== 'undefined' && __STATIC_APP__;
 let browserStorage; try { browserStorage = localStorage; } catch {}
 const appPath = new URL('.', location.href).pathname;
-const credentials = createCredentialStore(browserStorage, appPath);
-const preferenceKey = `yijian:provider:${appPath}`;
-let initialProvider = staticApp ? 'modelscope' : 'localai';
-try { const saved = browserStorage?.getItem(preferenceKey); if (Object.hasOwn(presets, saved) || (!staticApp && saved === 'localai')) initialProvider = saved; } catch {}
-function initialConfig(type) { return type === 'localai' ? { type } : credentials.read(type) || { type, baseUrl: presets[type].baseUrl, model: presets[type].model, apiKey: '' }; }
-let providerConfig = initialConfig(initialProvider);
+const profiles = createProfiles(browserStorage, appPath, staticApp ? 'modelscope' : 'localai');
+let settingsScope = 'global', writingBusy = false;
+let providerConfig = profiles.effective('translation');
 let localModels = ['qwen3.8-flash-next-strata'];
-let localModel = 'qwen3.8-flash-next-strata';
+let localModel = providerConfig.model || 'qwen3.8-flash-next-strata';
 const providerName = () => presets[providerConfig.type]?.name || 'LocalAI';
 function activeModel() { return providerConfig.type === 'localai' ? $('model').value : providerConfig.model; }
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -57,6 +55,11 @@ function setBusy(value) {
   $('translate').disabled = value || !$('source').value.trim();
   $('copy').disabled = !(complete || plan?.completed.size) || value;
   $('download').disabled = !(complete || plan?.completed.size) || value;
+  syncSettingsBusy();
+}
+
+function syncSettingsBusy() {
+  for (const id of ['settings', 'connection', 'writingSettings']) $(id).disabled = busy || writingBusy;
 }
 
 function resetOutput() {
@@ -109,10 +112,10 @@ async function checkConnection() {
     const data = await response.json();
     if (!response.ok || !data.online) throw new Error(data.error);
     const previous = localModel;
-    localModels = data.models;
+    localModels = [...new Set([...data.models, previous])];
     if (providerConfig.type !== 'localai') return;
-    $('model').replaceChildren(...data.models.map(id => { const option = document.createElement('option'); option.value = id; option.textContent = id === data.defaultModel ? 'Qwen3.8 Flash Next' : id; return option; }));
-    $('model').value = data.models.includes(previous) ? previous : data.defaultModel;
+    $('model').replaceChildren(...localModels.map(id => { const option = document.createElement('option'); option.value = id; option.textContent = id === data.defaultModel ? 'Qwen3.8 Flash Next' : id; return option; }));
+    $('model').value = previous;
     $('connectionText').textContent = 'LocalAI 已连接'; $('connection').classList.add('online');
     $('connection').title = `${data.engine} · 点击重新检查`;
   } catch { if (providerConfig.type === 'localai') { $('connectionText').textContent = '引擎暂时离线'; $('connection').classList.add('offline'); $('connection').title = '点击重新连接 LocalAI'; } }
@@ -196,7 +199,14 @@ async function readFile(file) {
 
 $('source').addEventListener('input', () => { resetOutput(); clearTimeout(previewTimer); previewTimer = setTimeout(languageLabels, 200); status('原文已更新，准备翻译。'); });
 for (const button of document.querySelectorAll('[data-mode]')) button.addEventListener('click', () => setMode(button.dataset.mode));
-for (const id of ['direction', 'model']) $(id).addEventListener('change', () => { if (id === 'model' && providerConfig.type === 'localai') localModel = $('model').value; resetOutput(); languageLabels(); });
+for (const id of ['direction', 'model']) $(id).addEventListener('change', () => {
+  if (id === 'model' && providerConfig.type === 'localai') {
+    localModel = $('model').value;
+    profiles.save(profiles.own('translation') ? 'translation' : 'global', { ...providerConfig, model: localModel });
+    providerConfig = profiles.effective('translation'); syncWritingProviderUI();
+  }
+  resetOutput(); languageLabels();
+});
 $('translate').addEventListener('click', translate);
 $('stop').addEventListener('click', () => controller?.abort());
 $('connection').addEventListener('click', checkConnection);
@@ -233,7 +243,7 @@ $('download').addEventListener('click', () => {
   toast(`已生成 ${name}`);
 });
 document.addEventListener('keydown', event => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); translate(); } });
-window.addEventListener('beforeunload', event => { if (busy) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('beforeunload', event => { if (busy || writingBusy) { event.preventDefault(); event.returnValue = ''; } });
 
 function syncThemeButton() {
   const dark = document.documentElement.dataset.theme === 'dark';
@@ -255,13 +265,16 @@ function settingsFields() {
   const type = $('providerType').value;
   const external = type !== 'localai';
   $('externalFields').hidden = !external; $('localSettingsNote').hidden = external;
+  $('localModelField').hidden = external;
+  $('localSettingsModel').value = (profiles.own(settingsScope) || profiles.effective(settingsScope)).model || localModel;
   $('settingsStatus').textContent = ''; $('settingsStatus').classList.remove('error');
   $('externalKey').type = 'password'; $('showKey').textContent = '显示';
   if (external) {
     const hint = presets[type].hint || (type === 'zai' ? 'Z.ai 当前接口在本站测试中未允许浏览器跨域访问（CORS），可能无法直连。此情况更换密钥无效，请使用支持浏览器直连的服务商；本应用不会通过代理中转你的密钥。' : '');
     $('providerHint').textContent = hint;
     $('providerHint').hidden = !hint;
-    const saved = providerConfig.type === type ? providerConfig : initialConfig(type);
+    const own = profiles.own(settingsScope);
+    const saved = own?.type === type ? own : profiles.initial(settingsScope, type);
     $('externalUrl').value = saved.baseUrl; $('externalModel').value = saved.model;
     $('externalKey').value = saved.apiKey || '';
     $('rememberKey').checked = Boolean(saved.remember);
@@ -273,9 +286,12 @@ function settingsFields() {
 }
 
 function syncProviderUI() {
+  providerConfig = profiles.effective('translation');
   const config = providerConfig;
-  $('engineLabel').textContent = `翻译引擎 · ${providerName()}`;
+  $('engineLabel').textContent = `翻译 · ${profiles.own('translation') ? '独立配置' : '全局默认'} · ${providerName()}`;
   if (config.type === 'localai') {
+    localModel = config.model || localModel;
+    if (!localModels.includes(localModel)) localModels.push(localModel);
     $('model').replaceChildren(...localModels.map(id => { const option = document.createElement('option'); option.value = id; option.textContent = id === 'qwen3.8-flash-next-strata' ? 'Qwen3.8 Flash Next' : id; return option; }));
     $('model').value = localModel;
     $('privacyDestination').textContent = '仅待译文本经局域网发送至 LocalAI';
@@ -286,23 +302,47 @@ function syncProviderUI() {
     $('connection').className = 'connection external'; $('connection').title = '浏览器直连 · 点击设置 API Key';
     $('privacyDestination').textContent = `待译文本由浏览器直接发送至 ${config.baseUrl ? new URL(config.baseUrl).hostname : '你选择的接口'}，密钥仅发送给该服务商用于鉴权`;
   }
+  syncWritingProviderUI();
 }
 
-function openSettings() {
-  if (busy) return;
-  $('providerType').value = providerConfig.type;
+function syncWritingProviderUI() {
+  const config = profiles.effective('writing');
+  $('writingEngine').textContent = `${profiles.own('writing') ? '独立配置' : '全局默认'} · ${presets[config.type]?.name || 'LocalAI'} · ${config.model || localModel}`;
+  $('writingDestination').textContent = config.type === 'localai' ? '待检查英文经局域网发送至 LocalAI。本应用不保存英文内容或检查结果。' : `待检查英文由浏览器直接发送至 ${config.baseUrl ? new URL(config.baseUrl).hostname : '所选服务商'}。本应用不保存英文内容或检查结果。`;
+}
+function syncInheritance() {
+  const inherited = settingsScope !== 'global' && $('inheritModel').checked;
+  $('inheritRow').hidden = settingsScope === 'global';
+  $('inheritNote').hidden = !inherited; $('profileFields').hidden = inherited;
+}
+function loadSettingsScope() {
+  settingsScope = $('settingsScope').value;
+  $('inheritModel').checked = settingsScope !== 'global' && !profiles.own(settingsScope);
+  $('providerType').value = profiles.effective(settingsScope).type;
   settingsFields();
+  syncInheritance();
+}
+function openSettings(scope = 'translation') {
+  if (busy || writingBusy) return;
+  $('settingsScope').value = scope;
+  loadSettingsScope();
   $('settingsDialog').showModal();
 }
 function readSettings() {
   const type = $('providerType').value;
-  if (type === 'localai' && !staticApp) return { type };
+  if (type === 'localai' && !staticApp) {
+    const model = $('localSettingsModel').value.trim();
+    if (!model || model.length > 200 || /[\r\n]/.test(model)) throw new Error('请填写有效的 LocalAI 模型 ID。');
+    return { type, model };
+  }
   return validateExternalProvider({ type, baseUrl: $('externalUrl').value.trim(), model: $('externalModel').value, apiKey: $('externalKey').value });
 }
 function settingsError(error) { $('settingsStatus').textContent = error.message; $('settingsStatus').classList.add('error'); }
 let settingsController = null;
 function closeSettings() { settingsController?.abort(); $('settingsDialog').close(); $('externalKey').value = ''; }
-$('settings').addEventListener('click', openSettings);
+$('settings').addEventListener('click', () => openSettings('translation'));
+$('settingsScope').addEventListener('change', loadSettingsScope);
+$('inheritModel').addEventListener('change', syncInheritance);
 $('closeSettings').addEventListener('click', closeSettings);
 $('cancelSettings').addEventListener('click', closeSettings);
 $('settingsDialog').addEventListener('close', () => { settingsController?.abort(); $('externalKey').value = ''; $('externalKey').type = 'password'; });
@@ -311,38 +351,40 @@ $('externalUrl').addEventListener('input', () => { $('externalKey').value = ''; 
 $('showKey').addEventListener('click', () => { const show = $('externalKey').type === 'password'; $('externalKey').type = show ? 'text' : 'password'; $('showKey').textContent = show ? '隐藏' : '显示'; });
 $('clearKeys').addEventListener('click', () => {
   try {
-    credentials.clear();
-    providerConfig = { ...providerConfig, apiKey: '', remember: false };
+    profiles.clearKeys();
     $('externalKey').value = ''; $('rememberKey').checked = false;
     syncProviderUI();
     $('settingsStatus').classList.remove('error');
     $('settingsStatus').textContent = '已清除本页及此浏览器中译间保存的全部服务商密钥。';
-  } catch (error) { settingsError(error); }
+  } catch (error) { syncProviderUI(); settingsError(error); }
 });
 $('applySettings').addEventListener('click', () => {
   try {
-    const next = readSettings();
-    if (next.type !== 'localai') { credentials.save(next, $('rememberKey').checked); next.remember = $('rememberKey').checked; }
-    if (providerConfig.type === 'localai') localModel = $('model').value;
-    providerConfig = next;
-    try { browserStorage?.setItem(preferenceKey, next.type); } catch {}
-    syncProviderUI(); resetOutput(); languageLabels(); closeSettings();
-    status(`已切换至 ${providerName()}。${next.type === 'localai' ? '' : next.remember ? '密钥已记住到此浏览器。' : '密钥仅在本页有效，刷新即清除。'}`);
+    const previousTranslation = JSON.stringify(profiles.effective('translation'));
+    const inherited = settingsScope !== 'global' && $('inheritModel').checked;
+    const next = inherited ? null : readSettings();
+    profiles.save(settingsScope, next, $('rememberKey').checked);
+    syncProviderUI();
+    if (JSON.stringify(profiles.effective('translation')) !== previousTranslation) resetOutput();
+    languageLabels(); closeSettings();
+    toast(`已应用${{ global: '全局默认', translation: '中英翻译', writing: '语法与润色' }[settingsScope]}设置${inherited ? '，跟随全局默认' : ''}`);
   } catch (error) { settingsError(error); }
 });
 $('testProvider').addEventListener('click', async () => {
   try {
     const config = readSettings();
     settingsController = new AbortController();
-    for (const id of ['testProvider', 'applySettings', 'providerType', 'externalUrl', 'externalModel', 'externalKey', 'clearKeys', 'rememberKey']) $(id).disabled = true;
+    for (const id of ['testProvider', 'applySettings', 'providerType', 'externalUrl', 'externalModel', 'externalKey', 'clearKeys', 'rememberKey', 'settingsScope', 'inheritModel']) $(id).disabled = true;
     $('settingsStatus').classList.remove('error'); $('settingsStatus').textContent = '浏览器正在直连接口并验证示例翻译…';
     const translations = await translateWithProvider({ provider: config, model: config.model, target: 'zh', items: [{ id: 'test', text: 'Hello. Welcome to the translation workspace.' }], signal: settingsController.signal, allowLocal: !staticApp });
     $('settingsStatus').textContent = `接口可用 · ${translations[0].text}`;
   } catch (error) { if (error.name !== 'AbortError') settingsError(error); }
   finally {
     settingsController = null;
-    for (const id of ['testProvider', 'applySettings', 'providerType', 'externalUrl', 'externalModel', 'externalKey', 'clearKeys', 'rememberKey']) $(id).disabled = false;
+    for (const id of ['testProvider', 'applySettings', 'providerType', 'externalUrl', 'externalModel', 'externalKey', 'clearKeys', 'rememberKey', 'settingsScope', 'inheritModel']) $(id).disabled = false;
   }
 });
 if (staticApp) $('providerType').querySelector('[value="localai"]')?.remove();
+setupWriting({ getProvider: () => profiles.effective('writing'), allowLocal: !staticApp, openSettings, toast,
+  onBusy: value => { writingBusy = value; syncSettingsBusy(); } });
 syncThemeButton(); syncProviderUI(); languageLabels();

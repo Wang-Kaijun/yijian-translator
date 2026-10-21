@@ -4,6 +4,7 @@ import { resolve, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { translationPrompt, parseCompletion } from './prompts.mjs';
 import { generationOptions } from './providers.mjs';
+import { writingPrompt, validateWritingInput, parseWritingCompletion } from './writing.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const publicRoot = resolve(root, 'public');
@@ -63,10 +64,11 @@ async function body(req) {
   catch { const error = new Error('请求必须是有效的 JSON'); error.status = 400; throw error; }
 }
 
-function validateRequest(data) {
-  if (!data || !['zh', 'en'].includes(data.target)) throw new Error('翻译方向无效');
+function validateRequest(data, writing = false) {
+  if (!data || (!writing && !['zh', 'en'].includes(data.target))) throw new Error('翻译方向无效');
   if (data.provider && data.provider.type !== 'localai' || data.apiKey || data.provider?.apiKey) throw new Error('外部接口请由浏览器直连；服务器不接收用户 API Key');
   if (!models.includes(data.model)) throw new Error('LocalAI 模型无效');
+  if (writing) { validateWritingInput(data.text); return; }
   if (!Array.isArray(data.items) || !data.items.length || data.items.length > 32) throw new Error('无效的文本分段数量');
   const ids = new Set();
   let size = 0;
@@ -90,15 +92,19 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { online: true, defaultModel, models, engine: 'LocalAI' });
       } catch { return json(res, 503, { online: false, defaultModel, models: [defaultModel], error: '暂时无法连接 LocalAI，请稍后重试' }); }
     }
-    if (url.pathname === '/api/translate' || url.pathname === '/api/test-provider') {
+    if (url.pathname === '/api/translate' || url.pathname === '/api/test-provider' || url.pathname === '/api/review') {
       if (req.method !== 'POST') return json(res, 405, { error: '只支持 POST 请求' }, { Allow: 'POST' });
       if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return json(res, 403, { error: '拒绝跨站请求' });
       if (req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: '拒绝跨站请求' });
       if (!/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) return json(res, 415, { error: '仅接受文本 JSON；不提供文件上传接口' });
       const data = await body(req);
       const testing = url.pathname === '/api/test-provider';
+      const writing = url.pathname === '/api/review';
       if (testing && data) { data.target = 'zh'; data.items = [{ id: 'test', text: 'Hello. Welcome to the translation workspace.' }]; }
-      try { validateRequest(data); } catch (error) { return json(res, 400, { error: error.message }); }
+      if (data && !models.includes(data.model)) {
+        try { await modelList(); } catch { return json(res, 503, { error: '暂时无法获取 LocalAI 模型，请稍后重试' }); }
+      }
+      try { validateRequest(data, writing); } catch (error) { return json(res, 400, { error: error.message }); }
       if (active >= 2) return json(res, 429, { error: '翻译引擎正在处理其他请求，请稍候' }, { 'Retry-After': '4' });
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 180000);
@@ -106,8 +112,8 @@ const server = http.createServer(async (req, res) => {
       active++;
       try {
         const payload = { model: data.model, temperature: 0.15, ...generationOptions('localai', data.model), stream: false, messages: [
-          { role: 'system', content: translationPrompt(data.target) },
-          { role: 'user', content: JSON.stringify({ items: data.items.map(({ id, text }) => ({ id, text })) }) },
+          { role: 'system', content: writing ? writingPrompt : translationPrompt(data.target) },
+          { role: 'user', content: JSON.stringify(writing ? { text: data.text } : { items: data.items.map(({ id, text }) => ({ id, text })) }) },
         ] };
         const response = await fetch(`${upstream}/chat/completions`, {
           method: 'POST',
@@ -124,6 +130,7 @@ const server = http.createServer(async (req, res) => {
         const completion = await response.json();
         const choice = completion?.choices?.[0];
         if (choice?.finish_reason === 'length') return json(res, 502, { error: '模型输出被截断，请重试当前分段' });
+        if (writing) return json(res, 200, { review: parseWritingCompletion(choice?.message?.content, data.text) });
         const translations = parseCompletion(choice?.message?.content, data.items);
         return json(res, 200, testing ? { ok: true, message: '接口可用，测试翻译已完成', sample: translations[0].text } : { translations });
       } catch (error) {
