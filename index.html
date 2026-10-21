@@ -11,7 +11,7 @@
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <script src="./theme.js?v=2d2b27346b911226"></script>
   <link rel="stylesheet" href="./style.css?v=625ef4fdbdae605d">
-  <script type="module" src="./app.js?v=607f2c555bd8db47"></script>
+  <script type="module" src="./app.js?v=1a5d0ecf768128ea"></script>
 </head>
 <body>
   <div class="shell">
@@ -151,6 +151,9 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
     </div>
     <div id="profileFields">
     <label class="form-field">已保存的站点<select id="savedSite"></select><small id="savedSiteHint">站点在全局模型中统一管理。</small></label>
+    <div id="siteActions" class="test-row" hidden><button id="renameSite" class="secondary-button" type="button">重命名</button><button id="deleteSite" class="secondary-button" type="button">删除站点</button></div>
+    <div id="siteRenamePanel" hidden><label class="form-field">新的站点名称<input id="newSiteName" maxlength="80" autocomplete="off"></label><div class="test-row"><button id="confirmRenameSite" class="secondary-button" type="button">保存名称</button><button id="cancelRenameSite" class="subtle-button" type="button">取消</button></div></div>
+    <div id="siteDeletePanel" hidden><p id="siteDeleteMessage" class="settings-note"></p><div class="test-row"><button id="confirmDeleteSite" class="secondary-button" type="button">确认删除</button><button id="cancelDeleteSite" class="subtle-button" type="button">取消</button></div></div>
     <div id="linkedSiteFields" hidden><label class="form-field">此功能使用的模型<select id="linkedModelChoice" aria-label="选择模型 ID"></select><input id="linkedModel" type="text" autocomplete="off" spellcheck="false" placeholder="手动输入完整模型 ID" aria-label="手动输入模型 ID" hidden></label><p id="linkedSiteSummary" class="settings-note"></p><button id="manageSites" class="subtle-button">管理站点或补充密钥 ↗</button></div>
     <div id="siteEditor">
     <label id="siteNameField" class="form-field">站点名称<input id="siteName" maxlength="80" placeholder="例如：家中 Ollama / 常用云端"></label>
