@@ -144,3 +144,12 @@ npm run build:pages
 - `server.mjs`：仅局域网 LocalAI 版本使用的网关。
 
 第三方组件许可随构建输出在 `licenses.txt` 中提供。
+
+
+### 服务商配置、备份与 WebDAV
+
+模型设置使用单一服务商选择器，内置 DeepSeek、智谱中国 / 海外、OpenRouter、Hugging Face、ModelScope、Groq、硅基流动；自建服务商集中在「我的服务商」，支持创建、重命名和删除。模型下拉选项区分免费模型、Free Plan 和试用额度；免费信息依据官方资料于 2026-10-22 核对，实际限额与费用以账户为准。模型价格来源见 `providers.mjs` 的 `PRICING_SOURCES`。
+
+配置文件为 `yijian-config` 版本 1 JSON，包含服务商、模型列表及各功能绑定。默认不导出密钥，可主动勾选包含明文密钥。导入先预览，再按稳定 ID 合并；未列出的服务商保留。相同 ID 的地址变更会丢弃原密钥，不会转发到新接口。导入密钥默认只保存在本页；另行勾选才持久化。文件最大 1 MB，最多 100 个服务商，每个最多 500 个模型。
+
+WebDAV 填写完整 JSON 文件 URL，以 GET 读取配置，重复读取用于更新本地；也可用 PUT 上传配置。支持 Basic 认证，账号密码仅本页暂存，不进入导出文件；本机 / 私有局域网地址允许 HTTP，公网要求 HTTPS。浏览器直连，需要服务端允许来源、GET/PUT/OPTIONS 及 Authorization、Content-Type、If-Match、If-None-Match 请求头，并暴露 ETag。覆盖上传使用 If-Match 检查版本；文件不存在时以 If-None-Match 创建；版本冲突拒绝覆盖。目录须预先存在。不后台自动同步，也不自动上传密钥。

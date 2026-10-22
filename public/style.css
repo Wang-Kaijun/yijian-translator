@@ -62,3 +62,7 @@
 
 /* Keep model selection visibly distinct from manual ID entry. */
 .form-field select[id$="ModelChoice"],.form-field #localSettingsModelChoice{appearance:auto;min-height:44px;width:100%;min-width:0;padding-right:12px}
+
+.config-transfer{border-top:1px solid #93a58c44;margin-top:24px;padding-top:24px}.config-transfer h3{font-size:14px}.config-transfer .test-row{flex-wrap:wrap;gap:10px}.config-transfer input:not([type=checkbox]){width:100%;min-width:0}.transfer-check{display:flex;gap:8px;align-items:flex-start;font-size:12px;margin:12px 0;line-height:1.6}.config-transfer details{margin-top:18px}.config-transfer ul{padding-left:20px;max-height:240px;overflow:auto;overflow-wrap:anywhere}.config-transfer summary{cursor:pointer}.config-transfer .form-field{margin-top:14px}#addProvider{margin-bottom:16px}#siteActions{margin-top:12px}
+
+@media(max-width:800px){.global-settings{grid-row:1}.override-card{grid-row:auto}}

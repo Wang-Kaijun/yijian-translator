@@ -131,10 +131,25 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
           <div class="workspace global-settings" id="globalFormHost"></div>
           <aside class="override-card">
             <h2>各功能独立选择</h2>
-            <p>站点地址、模型列表和密钥只需配置一次。各功能可选用已保存站点中的不同模型，或开启「使用全局模型」。De-Claudish 的此设置仅对「自选大模型」生效。</p>
+            <p>服务商地址、模型列表和密钥只需配置一次。各功能可选用已保存站点中的不同模型，或开启「使用全局模型」。De-Claudish 的此设置仅对「自选大模型」生效。</p>
             <button id="deployLocalModel" class="secondary-button">部署本地模型</button>
             <details id="localModelGuide" class="install-guide"><summary>本地模型安装与连接说明</summary><ol><li>从 <a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">Ollama 官网</a>安装并下载适合设备的模型。</li><li>设置环境变量 <code>OLLAMA_ORIGINS=https://wang-kaijun.github.io</code>，重启 Ollama。</li><li>选择「本地 / 局域网模型」，填写 <code>http://127.0.0.1:11434/v1</code>，点击获取模型列表并测试连接。</li></ol><p>局域网另一台电脑需配置监听地址（如 OLLAMA_HOST=0.0.0.0:11434）并允许专用网络防火墙访问，网页填写其局域网 IP。其他服务需提供 OpenAI 兼容接口，例如 http://192.168.1.100:8080/v1。</p><p>此选项提供安装引导，网页不会替你安装软件。浏览器可能请求本地网络权限；服务还需允许跨域访问。</p></details>
             <p id="globalUsage" role="status"></p>
+            <section class="config-transfer" id="configTransfer">
+              <h2>配置备份与同步</h2><p>导入、导出服务商、模型列表和各功能的模型选择。</p>
+              <label class="transfer-check"><input id="exportSecrets" type="checkbox"> 导出包含 API Key（明文）</label>
+              <div class="test-row"><button id="exportConfig" class="secondary-button">导出配置</button><button id="importConfig" class="secondary-button">导入文件</button><input id="configFile" type="file" accept=".json,application/json" hidden></div>
+              <details id="webdavSettings"><summary>WebDAV 远程配置</summary>
+                <label class="form-field">配置文件完整地址<input id="davUrl" type="url" placeholder="https://dav.example.com/yijian.json"><small>本机 / 局域网允许 HTTP；文件所在目录须已存在。</small></label>
+                <label class="form-field">用户名<input id="davUser" autocomplete="off"></label>
+                <label class="form-field">密码或应用密码<input id="davPassword" type="password" autocomplete="off"><small>密码仅在当前页面暂存，不随配置导出。</small></label>
+                <div class="test-row"><button id="davRead" class="secondary-button">从远程导入 / 更新</button><button id="davWrite" class="secondary-button">上传当前配置</button><button id="davCancel" class="subtle-button" hidden>取消请求</button></div>
+                <details><summary>连接帮助与跨域设置</summary><p class="settings-note">使用 GET / PUT 读写 JSON 文件。服务需允许当前网页来源、Authorization、Content-Type、If-Match、If-None-Match 跨域请求，并公开 ETag 响应头。上传前先读取远程版本，避免覆盖其他设备的更新。</p></details>
+              </details>
+              <div id="importPreview" hidden><h3>导入预览</h3><p id="importSummary"></p><ul id="importEntries"></ul><label class="transfer-check"><input id="importSelections" type="checkbox" checked> 同时更新各功能的模型选择</label><label class="transfer-check"><input id="importRemember" type="checkbox"> 将导入的密钥记住到此浏览器</label><div class="test-row"><button id="confirmImport" class="secondary-button">确认导入</button><button id="cancelImport" class="subtle-button">取消</button></div></div>
+              <div id="uploadPreview" hidden><p>上传会写入上方地址。仅包含已保存配置；是否包含密钥由上方勾选决定。</p><button id="confirmUpload" class="secondary-button">确认上传</button><button id="cancelUpload" class="subtle-button">取消</button></div>
+              <p id="transferStatus" class="settings-status" role="status"></p>
+            </section>
           </aside>
         </div>
       </section>
@@ -150,26 +165,26 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
       <p id="effectiveGlobalSummary" class="settings-note" hidden></p>
     </div>
     <div id="profileFields">
-    <label class="form-field">已保存的站点<select id="savedSite"></select><small id="savedSiteHint">站点在全局模型中统一管理。</small></label>
-    <div id="siteActions" class="test-row" hidden><button id="renameSite" class="secondary-button" type="button">重命名</button><button id="deleteSite" class="secondary-button" type="button">删除站点</button></div>
-    <div id="siteRenamePanel" hidden><label class="form-field">新的站点名称<input id="newSiteName" maxlength="80" autocomplete="off"></label><div class="test-row"><button id="confirmRenameSite" class="secondary-button" type="button">保存名称</button><button id="cancelRenameSite" class="subtle-button" type="button">取消</button></div></div>
+    <label class="form-field">服务商<select id="savedSite"></select><small id="savedSiteHint">站点在全局模型中统一管理。</small></label>
+    <button id="addProvider" type="button" class="secondary-button">＋ 新建服务商</button>
+    <div id="siteActions" class="test-row" hidden><button id="renameSite" class="secondary-button" type="button">重命名</button><button id="deleteSite" class="secondary-button" type="button">删除服务商</button></div>
+    <div id="siteRenamePanel" hidden><label class="form-field">新的服务商名称<input id="newSiteName" maxlength="80" autocomplete="off"></label><div class="test-row"><button id="confirmRenameSite" class="secondary-button" type="button">保存名称</button><button id="cancelRenameSite" class="subtle-button" type="button">取消</button></div></div>
     <div id="siteDeletePanel" hidden><p id="siteDeleteMessage" class="settings-note"></p><div class="test-row"><button id="confirmDeleteSite" class="secondary-button" type="button">确认删除</button><button id="cancelDeleteSite" class="subtle-button" type="button">取消</button></div></div>
     <div id="linkedSiteFields" hidden><label class="form-field">此功能使用的模型<select id="linkedModelChoice" aria-label="选择模型 ID"></select><input id="linkedModel" type="text" autocomplete="off" spellcheck="false" placeholder="手动输入完整模型 ID" aria-label="手动输入模型 ID" hidden></label><p id="linkedSiteSummary" class="settings-note"></p><button id="manageSites" class="subtle-button">管理站点或补充密钥 ↗</button></div>
     <div id="siteEditor">
-    <label id="siteNameField" class="form-field">站点名称<input id="siteName" maxlength="80" placeholder="例如：家中 Ollama / 常用云端"></label>
-    <label class="form-field">服务商<select id="providerType"><option value="localai">LocalAI · 局域网默认</option><option value="local">本地 / 局域网模型 · Ollama 等</option><option value="modelscope">魔搭 ModelScope · Qwen3.8 Flash Next</option><option value="groq">Groq · GPT-OSS 120B</option><option value="openrouter">OpenRouter · Qwen3.8 27B 免费版</option><option value="siliconflow">硅基流动 · Xing4.0-29B 免费版</option><option value="deepseek">DeepSeek</option><option value="zai">Z.ai</option><option value="zhipu">智谱 BigModel · GLM-4.7-Flash 免费版</option><option value="custom">自定义 · OpenAI 兼容接口</option></select></label>
+    <label id="siteNameField" class="form-field">服务商名称<input id="siteName" maxlength="80" placeholder="例如：家中 Ollama / 常用云端"></label>
+    <label class="form-field" hidden>接口类型<select id="providerType"><option value="huggingface">Hugging Face</option><option value="localai">LocalAI · 局域网默认</option><option value="local">本地 / 局域网模型 · Ollama 等</option><option value="modelscope">魔搭 ModelScope · Qwen3.8 Flash Next</option><option value="groq">Groq · GPT-OSS 120B</option><option value="openrouter">OpenRouter · Qwen3.8 27B 免费版</option><option value="siliconflow">硅基流动 · Xing4.0-29B 免费版</option><option value="deepseek">DeepSeek</option><option value="zai">Z.ai</option><option value="zhipu">智谱 BigModel · GLM-4.7-Flash 免费版</option><option value="custom">自定义 · OpenAI 兼容接口</option></select></label>
     <p id="localSettingsNote" class="settings-note">使用此局域网服务配置的 LocalAI，默认模型为 Qwen3.8 Flash Next。无需填写个人 API Key。</p>
     <label id="localModelField" class="form-field">LocalAI 模型 ID<select id="localSettingsModelChoice" aria-label="选择模型 ID"></select><input id="localSettingsModel" type="text" autocomplete="off" spellcheck="false" placeholder="手动输入完整模型 ID" aria-label="手动输入模型 ID" hidden></label>
     <div id="externalFields" hidden>
       <p id="providerHint" class="settings-note" hidden>Z.ai 当前接口在本站测试中未允许浏览器跨域访问（CORS），可能无法直连。此情况更换密钥无效，请使用支持浏览器直连的服务商；本应用不会通过代理中转你的密钥。</p>
-      <label class="form-field">API 地址<input id="externalUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://api.example.com/v1"><small>填写基础地址，末尾无需添加 /chat/completions。自定义接口自动识别本机 / 局域网地址并支持 HTTP；公网使用 HTTPS。</small></label>
-      <div class="test-row"><button id="fetchModels" class="secondary-button">获取模型列表</button><span id="modelListStatus" role="status">获取后直接在下方选择，无需复制粘贴</span></div>
-      <label class="form-field">选择模型<select id="externalModelChoice" aria-label="选择模型 ID"></select><input id="externalModel" type="text" autocomplete="off" spellcheck="false" placeholder="手动输入完整模型 ID" aria-label="手动输入模型 ID" hidden></label>
-      <div id="siteModelsField"><details id="manualModelList"><summary>高级：手动维护站点模型列表</summary><label class="form-field">每行一个模型 ID<textarea id="siteModels" rows="3" placeholder="仅在接口不提供模型列表时手动填写"></textarea></label></details></div>
+      <label class="form-field">API 地址<input id="externalUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://api.example.com/v1"><small id="apiAddressHint"></small></label>
       <label class="form-field">API Key<div class="key-field"><input id="externalKey" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴你自己的 API Key" autocapitalize="off" data-lpignore="true"><button id="showKey" class="subtle-button" type="button">显示</button></div></label>
       <div class="key-options"><label><input id="rememberKey" type="checkbox"> 记住到此浏览器</label><a id="getKey" target="_blank" rel="noopener noreferrer" hidden>获取 API Key ↗</a></div>
+      <div class="test-row"><button id="fetchModels" class="secondary-button">获取模型列表</button><span id="modelListStatus" role="status">获取后直接在下方选择，无需复制粘贴</span></div>
+      <label class="form-field">选择模型<select id="externalModelChoice" aria-label="选择模型 ID"></select><input id="externalModel" type="text" autocomplete="off" spellcheck="false" placeholder="手动输入完整模型 ID" aria-label="手动输入模型 ID" hidden></label>
       <p class="settings-note">默认刷新即清除密钥。勾选后保存在此浏览器的本站存储中。选用同一站点的功能共享该站点密钥；密钥不写入 GitHub。本地无鉴权接口可留空，局域网 HTTP 请求未加密。</p>
-      <p class="settings-note">免费额度、模型权限与超额费用以服务商账户为准。接口需要支持浏览器跨域访问；网络或地区限制可能影响连接。</p>
+      <p class="settings-note">“免费”仍有调用限额；“试用额度”用尽后可能计费。未标注不代表免费。<a id="pricingSource" target="_blank" rel="noopener noreferrer" hidden>查看官方价格与额度 ↗</a></p>
       <button id="clearKeys" class="subtle-button" type="button">清除本浏览器保存的全部密钥</button>
       <div class="test-row"><button id="testProvider" class="secondary-button">测试接口</button><span>仅发送一句示例文字</span></div>
     </div>

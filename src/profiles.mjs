@@ -1,3 +1,4 @@
+import { parseConfig } from './config-transfer.mjs';
 import { createCredentialStore } from './credentials.mjs';
 import { PROVIDERS, validateExternalProvider } from '../providers.mjs';
 import { createSiteLibrary } from './sites.mjs';
@@ -70,6 +71,26 @@ export function createProfiles(storage, path, defaultType) {
   };
   return {
     sites,
+    importConfig(input, { selections = true, remember = false } = {}) {
+      const data = parseConfig(JSON.stringify(input));
+      const changes = selections ? Object.entries(data.selections) : [];
+      const previous = new Map();
+      try {
+        for (const [scope, value] of changes) {
+          for (const [k, v] of [[bindingKey(scope), JSON.stringify({ siteId: value.siteId, model: value.model })], ...(scope === 'global' ? [] : [[overrideKey(scope), String(value.useGlobal)]])]) {
+            previous.set(k, storage?.getItem(k)); storage?.setItem(k, v);
+          }
+        }
+        sites.merge(data.sites, remember);
+      } catch (e) {
+        for (const [k, v] of previous) { try { if (v == null) storage?.removeItem(k); else storage?.setItem(k, v); } catch {} }
+        throw e;
+      }
+      for (const [scope, value] of changes) {
+        bindings[scope] = { siteId: value.siteId, model: value.model };
+        if (scope !== 'global') overrides[scope] = value.useGlobal;
+      }
+    },
     binding: scope => bindings[scope] ? { ...bindings[scope] } : null,
     bind(scope, siteId, model) {
       const site = sites.read(siteId);
