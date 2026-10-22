@@ -36,6 +36,18 @@ export function createSiteLibrary(storage, path) {
       const next = new Map(sites); next.set(id, site); persist(next); sites.set(id, site);
       return id;
     },
+    merge(entries, remember = false) {
+      const next = new Map(sites);
+      for (const entry of entries) {
+        const old = sites.get(entry.id);
+        const sameEndpoint = old?.type === entry.type && old?.baseUrl === entry.baseUrl;
+        const apiKey = entry.apiKey === undefined ? (sameEndpoint ? old.apiKey : '') : entry.apiKey;
+        const keep = entry.apiKey === undefined && sameEndpoint ? old.remember : Boolean(remember && apiKey);
+        next.set(entry.id, { ...entry, apiKey, remember: keep });
+      }
+      if (next.size > 100) throw new Error('合并后超过 100 个服务商，请先删除不用的服务商。');
+      persist(next); sites.clear(); for (const [id, site] of next) sites.set(id, site);
+    },
     rename(id, label) {
       const site = sites.get(id);
       if (!site) throw new Error('请选择已保存的站点。');

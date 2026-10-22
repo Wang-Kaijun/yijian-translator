@@ -5,8 +5,9 @@ export const PROVIDERS = Object.freeze({
   openrouter: { name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'qwen/qwen3.8-27b:free', models: ['qwen/qwen3.8-27b:free'], keyUrl: 'https://openrouter.ai/settings/keys', hint: '默认选择免费模型（:free）。免费接口有限流，模型可用性可能变化；修改为付费模型会按服务商规则计费。' },
   siliconflow: { name: '硅基流动', baseUrl: 'https://api.siliconflow.cn/v1', model: 'XingChenAGI/Xing4.0-29B', models: ['XingChenAGI/Xing4.0-29B'], keyUrl: 'https://cloud.siliconflow.cn/me/account/ak', hint: '默认模型在 2026-10-15 官方价格页标注免费。需要完成平台要求的认证，具体限速及价格以模型页面为准。' },
   deepseek: { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com', model: 'deepseek-flash', models: ['deepseek-flash', 'deepseek-v4-pro'] },
-  zai: { name: 'Z.ai', baseUrl: 'https://api.z.ai/api/paas/v4', model: 'glm-5.3', models: ['glm-5.3', 'glm-5.2', 'glm-5', 'glm-4.7'] },
-  zhipu: { name: '智谱', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.7-flash', models: ['glm-4.7-flash'], keyUrl: 'https://bigmodel.cn/usercenter/proj-mgmt/apikeys', hint: '默认使用免费模型 GLM-4.7-Flash。已有浏览器保存的模型设置仍会保留，可手动改为 glm-4.7-flash。免费政策及并发限制以智谱平台为准。' },
+  zai: { name: '智谱 · 海外 Z.ai', baseUrl: 'https://api.z.ai/api/paas/v4', model: 'glm-5.3', models: ['glm-5.3', 'glm-5.2', 'glm-5', 'glm-4.7'] },
+  zhipu: { name: '智谱 · 中国 BigModel', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.7-flash', models: ['glm-4.7-flash'], keyUrl: 'https://bigmodel.cn/usercenter/proj-mgmt/apikeys', hint: '默认使用免费模型 GLM-4.7-Flash。已有浏览器保存的模型设置仍会保留，可手动改为 glm-4.7-flash。免费政策及并发限制以智谱平台为准。' },
+  huggingface: { name: 'Hugging Face', baseUrl: 'https://router.huggingface.co/v1', model: 'zai-org/GLM-5.3', models: ['zai-org/GLM-5.3'], keyUrl: 'https://huggingface.co/settings/tokens', hint: '提供每月免费试用额度；用尽后按服务商价格计费。需要有 Inference Providers 权限的 Token。' },
   custom: { name: '自定义接口', baseUrl: '', model: '', models: [] },
   local: { name: '本地 / 局域网模型', baseUrl: 'http://127.0.0.1:11434/v1', model: '', models: [] },
 });
@@ -67,4 +68,23 @@ export function generationOptions(type, model) {
   if (type === 'deepseek') return { thinking: { type: 'disabled' }, max_tokens: 8192 };
   if (type === 'zai' || type === 'zhipu') return /^glm-5\.3/i.test(model) ? { thinking: { type: 'enabled' }, reasoning_effort: 'low', max_tokens: 16384 } : { thinking: { type: 'disabled' }, max_tokens: 8192 };
   return { max_tokens: 8192 };
+}
+
+// Verified official pricing sources, 2026-10-22. Never infer free pricing for custom endpoints.
+export const PRICING_SOURCES = {
+  zhipu: 'https://www.zhipuai.cn/zh/news/148',
+  siliconflow: 'https://www.siliconflow.cn/pricing',
+  openrouter: 'https://openrouter.ai/support',
+  groq: 'https://console.groq.com/docs/rate-limits',
+  huggingface: 'https://huggingface.co/docs/inference-providers/main/pricing',
+  modelscope: 'https://modelscope.cn/docs/model-service/API-Inference/limits',
+};
+export function modelPriceLabel(type, model) {
+  if (type === 'openrouter' && (model.endsWith(':free') || model === 'openrouter/free')) return '免费 · 有限额';
+  if (type === 'zhipu' && model.toLowerCase() === 'glm-4.7-flash') return '免费 · 有限额';
+  if (type === 'siliconflow' && ['XingChenAGI/Xing4.0-29B', 'tencent/Hunyuan-MT-7B'].includes(model)) return '免费 · 有限额';
+  if (type === 'groq' && ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'].includes(model)) return 'Free Plan 可用';
+  if (type === 'modelscope') return '免费调用额度 · 有限额';
+  if (type === 'huggingface') return '可用账户试用额度';
+  return '';
 }

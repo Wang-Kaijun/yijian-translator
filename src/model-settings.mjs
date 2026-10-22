@@ -1,17 +1,18 @@
-import { PROVIDERS as presets, validateExternalProvider, isLocalProvider } from '../providers.mjs';
+import { setupConfigTransfer } from './config-transfer-ui.mjs';
+import { PROVIDERS as presets, validateExternalProvider, isLocalProvider, modelPriceLabel, PRICING_SOURCES } from '../providers.mjs';
 import { translateWithProvider, fetchModels } from './api.mjs';
 import { cleanModels } from './sites.mjs';
 
 export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWorkspace, toast }) {
   const $ = id => document.getElementById(id);
   const names = { translation: '翻译', writing: '语法与润色', declaudish: 'De-Claudish', global: '全局' };
-  let scope = 'translation', controller = null, workspace = 'translation';
+  let scope = 'translation', controller = null, workspace = 'translation', editorModels = [];
   const option = (value, text) => { const el = document.createElement('option'); el.value = value; el.textContent = text; return el; };
   const manualModel = '__manual_model__';
   function modelChoices(id, values, current = $(id).value) {
     const list = cleanModels([current, ...values]);
     const select = $(id + 'Choice');
-    select.replaceChildren(option('', list.length ? '请选择模型' : '暂无模型列表，请获取列表或手动输入'), ...list.map(value => option(value, value)), option(manualModel, '手动输入模型 ID…'));
+    select.replaceChildren(option('', list.length ? '请选择模型' : '暂无模型列表，请获取列表或手动输入'), ...list.map(value => { const type = id === 'linkedModel' ? selectedSite()?.type : $('providerType').value; const price = modelPriceLabel(type, value); return option(value, price ? `${value} — ${price}` : value); }), option(manualModel, '手动输入模型 ID…'));
     select.value = current || '';
     $(id).value = current || ''; $(id).hidden = true;
     if (id === 'externalModel') $('modelListStatus').textContent = list.length ? `下拉菜单中有 ${list.length} 个模型，点击选择` : '获取后直接在下方选择，无需复制粘贴';
@@ -56,37 +57,59 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   }
   function fields(config) {
     const type = config.type;
-    $('manualModelList').open = false;
     $('providerType').value = type;
     $('externalFields').hidden = type === 'localai';
     $('localSettingsNote').hidden = type !== 'localai'; $('localModelField').hidden = type !== 'localai';
     modelChoices('localSettingsModel', [], type === 'localai' ? config.model : '');
     $('externalUrl').value = config.baseUrl || ''; $('externalUrl').readOnly = !['local', 'custom'].includes(type);
+    $('apiAddressHint').textContent = ['local', 'custom'].includes(type) ? '可直接修改地址。更改后请重新填写密钥并选择模型，再应用设置。' : '内置服务商的官方地址不可修改。如需其他地址，请点击「新建服务商」。';
     $('externalModel').value = config.model || ''; $('externalKey').value = config.apiKey || '';
     $('externalKey').type = 'password'; $('showKey').textContent = '显示';
     $('rememberKey').checked = Boolean(config.remember);
     endpointHint();
+    $('pricingSource').hidden = !PRICING_SOURCES[type];
+    if (PRICING_SOURCES[type]) $('pricingSource').href = PRICING_SOURCES[type];
     $('getKey').hidden = !presets[type]?.keyUrl;
     if (presets[type]?.keyUrl) $('getKey').href = presets[type].keyUrl;
     const list = config.models || presets[type]?.models || [];
-    $('siteModels').value = cleanModels([config.model, ...list]).join('\n'); models('modelSuggestions', list);
+    editorModels = cleanModels([config.model, ...list]); models('modelSuggestions', editorModels);
+  }
+  const builtin = type => Object.hasOwn(presets, type) && !['custom', 'local'].includes(type);
+  function selectedSite() {
+    const value = $('savedSite').value;
+    return value.startsWith('preset:') ? profiles.sites.list().map(s => profiles.sites.read(s.id)).find(s => s.type === value.slice(7)) : profiles.sites.read(value);
+  }
+  function siteMenuValue(id) {
+    const site = profiles.sites.read(id);
+    return site && builtin(site.type) && profiles.sites.list().find(s => s.type === site.type)?.id === id ? 'preset:' + site.type : id;
+  }
+  function providerMenu() {
+    const group = (label, entries) => { const el = document.createElement('optgroup'); el.label = label; el.append(...entries); return el; };
+    const all = profiles.sites.list();
+    const builtins = ['deepseek', 'zhipu', 'zai', 'openrouter', 'huggingface', 'modelscope', 'groq', 'siliconflow'];
+    $('savedSite').replaceChildren(group('内置服务商', builtins.map(type => option('preset:' + type, presets[type].name + (all.some(s => s.type === type) ? ' · 已配置' : '')))), group('我的服务商', all.filter(s => !builtin(s.type) || all.find(x => x.type === s.type)?.id !== s.id).map(s => option(s.id, s.label))));
+    if (!builtin(profiles.own(scope).type)) $('savedSite').append(option('__legacy', '当前独立配置'));
+    $('savedSite').append(option('__new', '＋ 新建自定义服务商'));
+    if (!staticApp) $('savedSite').append(option('localai', 'LocalAI · 局域网默认'));
   }
   function selectSite() {
     const selected = $('savedSite').value;
-    const site = profiles.sites.read(selected);
-    $('siteActions').hidden = scope !== 'global' || !site;
+    const site = selectedSite();
+    $('siteActions').hidden = scope !== 'global' || !site || selected.startsWith('preset:');
+    $('addProvider').hidden = scope !== 'global';
     $('siteRenamePanel').hidden = true; $('siteDeletePanel').hidden = true;
     const linked = scope !== 'global' && Boolean(site);
     $('linkedSiteFields').hidden = !linked; $('siteEditor').hidden = linked;
-    $('siteNameField').hidden = scope !== 'global'; $('siteModelsField').hidden = scope !== 'global';
+    $('siteNameField').hidden = scope !== 'global' || Boolean(site) || selected.startsWith('preset:');
     if (linked) {
       const binding = profiles.binding(scope);
-      $('linkedModel').value = binding?.siteId === selected ? binding.model : site.model;
+      $('linkedModel').value = binding?.siteId === site.id ? binding.model : site.model;
       models('linkedModels', site.models);
       $('linkedSiteSummary').textContent = `${site.baseUrl} · ${site.apiKey ? '已配置共享密钥' : isLocalProvider(site) ? '未设置密钥（无鉴权服务可用）' : '需要在全局模型页补充密钥'}。此处只选择模型，修改站点会同步到所有引用它的功能。`;
     } else {
-      const config = site || (selected === '__new' ? { type: 'modelscope', ...presets.modelscope, apiKey: '' } : profiles.own(scope));
-      fields(config); $('siteName').value = site?.label || '';
+      const type = selected.startsWith('preset:') ? selected.slice(7) : selected === 'localai' ? 'localai' : null;
+      const config = site || (type ? (profiles.own(scope).type === type ? profiles.own(scope) : type === 'localai' ? profiles.initial(scope, type) : { type, ...presets[type], apiKey: '' }) : selected === '__new' ? { type: 'custom', ...presets.custom, apiKey: '' } : profiles.own(scope));
+      fields(site && !selected.startsWith('preset:') && builtin(config.type) ? { ...config, type: 'custom' } : config); $('siteName').value = site?.label || '';
     }
     $('settingsStatus').textContent = ''; $('settingsStatus').classList.remove('error');
   }
@@ -99,11 +122,11 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   }
   function load(next) {
     scope = next; $('settingsTitle').textContent = names[scope] + '模型配置';
-    $('savedSite').replaceChildren(option('__legacy', scope === 'global' ? '当前配置（保存为站点）' : '当前独立配置'), ...profiles.sites.list().map(site => option(site.id, site.label)));
-    if (scope === 'global') $('savedSite').append(option('__new', '＋ 添加站点'));
-    const boundSite = profiles.binding(scope)?.siteId;
-    $('savedSite').value = profiles.sites.read(boundSite) ? boundSite : '__legacy';
-    $('savedSiteHint').textContent = scope === 'global' ? '添加并保存多个站点；此处应用的模型同时成为全局默认模型。' : '选择全局已保存的站点即可复用地址、模型列表和密钥。';
+    providerMenu();
+    const boundSite = profiles.sites.read(profiles.binding(scope)?.siteId);
+    const current = profiles.own(scope);
+    $('savedSite').value = boundSite ? (builtin(boundSite.type) && profiles.sites.list().find(s => s.type === boundSite.type)?.id === boundSite.id ? 'preset:' + boundSite.type : boundSite.id) : builtin(current.type) ? 'preset:' + current.type : '__legacy';
+    $('savedSiteHint').textContent = scope === 'global' ? '先选服务商，再选模型。内置服务商已填写官方地址。' : '复用已配置服务商的地址、模型列表和密钥。';
     $('clearKeys').textContent = '清除此站点的密钥';
     $('featureOverride').checked = profiles.isOverridden(scope);
     selectSite(); syncOverride(); syncBusy();
@@ -130,12 +153,12 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     if (profiles.isOverridden(feature) || profiles.binding(feature)) {
       const binding = profiles.binding(profiles.isOverridden(feature) ? 'global' : feature);
       switchWorkspace('global');
-      if (binding && profiles.sites.read(binding.siteId)) { $('savedSite').value = binding.siteId; selectSite(); }
+      if (binding && profiles.sites.read(binding.siteId)) { $('savedSite').value = siteMenuValue(binding.siteId); selectSite(); }
     }
     else open(feature);
   }
   function read(listOnly = false) {
-    const site = scope !== 'global' && profiles.sites.read($('savedSite').value);
+    const site = scope !== 'global' && selectedSite();
     if (site) return validateExternalProvider({ ...site, model: $('linkedModel').value });
     const type = $('providerType').value;
     if (type === 'localai' && !staticApp) {
@@ -167,23 +190,23 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   });
   $('featureOverride').addEventListener('change', syncOverride);
   $('savedSite').addEventListener('change', selectSite);
+  $('addProvider').addEventListener('click', () => { $('savedSite').value = '__new'; selectSite(); $('siteName').focus(); });
   $('providerType').addEventListener('change', () => {
     const type = $('providerType').value;
     fields(type === 'localai' ? { type, model: profiles.initial(scope, type).model } : { type, ...presets[type], apiKey: '' });
   });
   $('externalUrl').addEventListener('input', () => {
-    $('externalKey').value = ''; $('rememberKey').checked = false; $('siteModels').value = ''; models('modelSuggestions', []);
+    $('externalKey').value = ''; $('rememberKey').checked = false; editorModels = []; modelChoices('externalModel', [], '');
     const local = endpointHint();
     $('settingsStatus').textContent = local ? '地址已更改；无鉴权服务可直接获取模型列表，需要鉴权时请填写此地址的密钥。' : '地址已更改；请填写此地址的密钥并重新获取模型列表。';
   });
-  $('siteModels').addEventListener('input', () => models('modelSuggestions', $('siteModels').value.split('\n')));
   $('showKey').addEventListener('click', () => { const show = $('externalKey').type === 'password'; $('externalKey').type = show ? 'text' : 'password'; $('showKey').textContent = show ? '隐藏' : '显示'; });
   $('manageSites').addEventListener('click', () => {
-    const id = $('savedSite').value; close(); switchWorkspace('global');
-    if (profiles.sites.read(id)) { $('savedSite').value = id; selectSite(); }
+    const id = selectedSite()?.id; close(); switchWorkspace('global');
+    if (profiles.sites.read(id)) { $('savedSite').value = siteMenuValue(id); selectSite(); }
   });
   $('renameSite').addEventListener('click', () => {
-    const site = profiles.sites.read($('savedSite').value); if (!site) return;
+    const site = selectedSite(); if (!site) return;
     $('siteDeletePanel').hidden = true; $('siteRenamePanel').hidden = false;
     $('newSiteName').value = site.label; $('newSiteName').focus(); $('newSiteName').select();
   });
@@ -191,14 +214,14 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   $('confirmRenameSite').addEventListener('click', () => {
     if (isBusy() || controller) return;
     try {
-      const id = $('savedSite').value, label = $('newSiteName').value.trim();
+      const id = selectedSite().id, label = $('newSiteName').value.trim();
       profiles.sites.rename(id, label);
       $('savedSite').selectedOptions[0].textContent = label; $('siteName').value = label;
-      $('siteRenamePanel').hidden = true; refresh(); toast('站点名称已修改');
+      $('siteRenamePanel').hidden = true; refresh(); toast('服务商名称已修改');
     } catch (e) { error(e); }
   });
   $('deleteSite').addEventListener('click', () => {
-    const id = $('savedSite').value, site = profiles.sites.read(id); if (!site) return;
+    const site = selectedSite(), id = site?.id; if (!site) return;
     const affected = Object.keys(names).filter(s => profiles.binding(s)?.siteId === id).map(s => names[s]);
     $('siteRenamePanel').hidden = true; $('siteDeletePanel').hidden = false;
     $('siteDeleteMessage').textContent = `删除「${site.label}」及其保存的地址、模型列表和密钥？${affected.length ? '引用此站点的' + affected.join('、') + '需重新选择站点；使用全局模型的功能随全局设置生效。' : ''}不会自动切换到其他接口。`;
@@ -207,13 +230,13 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   $('confirmDeleteSite').addEventListener('click', () => {
     if (isBusy() || controller) return;
     try {
-      profiles.sites.remove($('savedSite').value); load('global'); refresh();
+      profiles.sites.remove(selectedSite().id); load('global'); refresh();
       $('settingsStatus').textContent = '站点及保存的密钥已删除。引用此站点的配置需要重新选择站点。'; toast('站点已删除');
     } catch (e) { error(e); }
   });
   $('clearKeys').addEventListener('click', () => {
     try {
-      if (profiles.sites.read($('savedSite').value)) profiles.sites.clearKeys($('savedSite').value);
+      if (selectedSite()) profiles.sites.clearKeys(selectedSite().id);
       else profiles.clearKeys(scope);
       $('externalKey').value = ''; $('rememberKey').checked = false; refresh();
       $('settingsStatus').textContent = '密钥已清除。选用此站点的功能均需重新配置密钥后使用。';
@@ -224,11 +247,11 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     try {
       const inherited = scope !== 'global' && $('featureOverride').checked;
       if (!inherited) {
-        if (scope !== 'global' && profiles.sites.read($('savedSite').value)) profiles.bind(scope, $('savedSite').value, $('linkedModel').value);
+        if (scope !== 'global' && selectedSite()) profiles.bind(scope, selectedSite().id, $('linkedModel').value);
         else {
           const config = read();
           if (scope === 'global' && config.type !== 'localai') {
-            const id = profiles.sites.save(profiles.sites.read($('savedSite').value)?.id, config, $('siteName').value, $('siteModels').value.split('\n'), $('rememberKey').checked);
+            const id = profiles.sites.save(selectedSite()?.id, config, $('siteName').value, editorModels, $('rememberKey').checked);
             profiles.bind('global', id, config.model);
           } else profiles.save(scope, config, $('rememberKey').checked);
         }
@@ -250,7 +273,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
       if (listOnly) {
         const ids = await fetchModels(config, request.signal);
         if (request.signal.aborted) return;
-        $('siteModels').value = ids.join('\n'); models('modelSuggestions', ids);
+        editorModels = ids; models('modelSuggestions', ids);
         if (!$('externalModel').value) modelChoices('externalModel', ids, ids[0]);
         $('settingsStatus').textContent = `已读取 ${ids.length} 个模型，请在「选择模型」下拉菜单中选择，再应用设置。`;
       } else {
@@ -267,6 +290,8 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     $('localModelGuide').open = true; $('externalUrl').focus();
   });
   if (staticApp) $('providerType').querySelector('[value="localai"]')?.remove();
+  setupConfigTransfer({ profiles, onChange: () => { load('global'); refresh(); }, isBusy: () => isBusy() || Boolean(controller) });
   refresh();
+  if (location.hash === '#global') switchWorkspace('global');
   return { open, openEffective, syncBusy, refresh, error, switchWorkspace };
 }
