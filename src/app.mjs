@@ -67,7 +67,7 @@ function resetOutput() {
   $('progressTrack').hidden = true; $('progressLabel').textContent = '';
   $('resultNote').textContent = '忠于原意，自然表达';
   $('translateText').textContent = '开始翻译';
-  $('downloadText').textContent = mode === 'markdown' ? '下载 .md' : '下载';
+  $('downloadText').textContent = mode === 'markdown' ? '下载 .md' : '下载 .txt';
 }
 
 function updateOutput() {
@@ -88,17 +88,22 @@ function updateOutput() {
   $('progress').value = total ? Math.round(100 * count / total) : 100;
   $('progressLabel').textContent = total ? `${count} / ${total} 段` : '';
   $('resultNote').textContent = complete ? (mode === 'markdown' ? '结构已保留 · 代码与链接原样保留' : '翻译完成') : '部分译文 · 未完成的段落保留原文';
-  $('downloadText').textContent = !complete ? '下载部分结果' : mode === 'markdown' ? '下载 .md' : '下载';
+  $('downloadText').textContent = !complete ? '下载部分结果' : mode === 'markdown' ? '下载 .md' : '下载 .txt';
+}
+
+function updateFileLabel() {
+  $('fileLabel').textContent = filename || (mode === 'markdown' ? '拖入 .md 文件，或直接粘贴 Markdown' : '拖入 .txt 文件，或直接输入文字');
+  $('fileLabel').title = filename;
 }
 
 function setMode(next) {
   mode = next; filename = '';
   for (const element of document.querySelectorAll('[data-mode]')) { const selected = element.dataset.mode === mode; element.classList.toggle('selected', selected); element.setAttribute('aria-selected', String(selected)); }
-  $('documentBar').hidden = mode !== 'markdown'; $('viewTabs').hidden = mode !== 'markdown';
-  $('fileLabel').textContent = '拖入 .md 文件，或直接粘贴 Markdown';
+  $('documentBar').hidden = false; $('viewTabs').hidden = mode !== 'markdown';
+  updateFileLabel();
   $('source').placeholder = mode === 'markdown' ? '# 在这里粘贴 Markdown\n\n也可以选择或拖入 .md 文件。\n标题、列表、表格、代码与链接结构都会保留。' : "在这里写下或粘贴文字…\n\nPaste something here. We'll find the right direction.";
   resetOutput(); languageLabels();
-  status(mode === 'markdown' ? '选择 Markdown 文件，或直接粘贴内容。' : '准备就绪，输入文字即可开始。');
+  status(mode === 'markdown' ? '选择 Markdown 文件，或直接粘贴内容。' : '选择 TXT 文件，或直接输入文字即可开始。');
 }
 
 function wait(ms, signal) {
@@ -164,13 +169,14 @@ async function translate() {
 
 async function readFile(file) {
   if (!file || busy) return;
-  if (!/\.(md|markdown)$/i.test(file.name)) { status('请选择 .md 或 .markdown 文件。', true); return; }
+  $('fileInput').value = '';
+  if (!/\.(txt|md|markdown)$/i.test(file.name)) { status('请选择 .txt、.md 或 .markdown 文件。', true); return; }
   if (file.size > MAX_BYTES) { status('文件超过 2 MB，请分成较小的文档。', true); return; }
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
-    setMode('markdown'); filename = file.name; $('source').value = text;
-    $('fileLabel').textContent = file.name; $('fileLabel').title = file.name;
+    setMode(/\.txt$/i.test(file.name) ? 'text' : 'markdown'); filename = file.name; $('source').value = text;
+    updateFileLabel();
     languageLabels(); status(`已在浏览器中读取 ${file.name} · 文件未上传`);
   } catch { status('无法读取文件。请将文件保存为 UTF-8 编码后重试。', true); }
   $('fileInput').value = '';
@@ -181,8 +187,8 @@ for (const button of document.querySelectorAll('[data-mode]')) button.addEventLi
 $('direction').addEventListener('change', () => { resetOutput(); languageLabels(); });
 $('translate').addEventListener('click', translate);
 $('stop').addEventListener('click', () => controller?.abort());
-$('clear').addEventListener('click', () => { $('source').value = ''; filename = ''; $('fileLabel').textContent = '拖入 .md 文件，或直接粘贴 Markdown'; resetOutput(); languageLabels(); status('已清空。'); $('source').focus(); });
-$('sample').addEventListener('click', () => { $('source').value = mode === 'markdown' ? sampleMarkdown : sampleText; filename = ''; resetOutput(); languageLabels(); status('示例已就绪，点击开始翻译。'); });
+$('clear').addEventListener('click', () => { $('source').value = ''; filename = ''; updateFileLabel(); resetOutput(); languageLabels(); status('已清空。'); $('source').focus(); });
+$('sample').addEventListener('click', () => { $('source').value = mode === 'markdown' ? sampleMarkdown : sampleText; filename = ''; updateFileLabel(); resetOutput(); languageLabels(); status('示例已就绪，点击开始翻译。'); });
 $('chooseFile').addEventListener('click', () => $('fileInput').click());
 $('fileInput').addEventListener('change', event => readFile(event.target.files?.[0]));
 for (const name of ['dragenter', 'dragover']) $('dropArea').addEventListener(name, event => { event.preventDefault(); if (!busy) $('dropArea').classList.add('dragging'); });
@@ -207,7 +213,7 @@ $('copy').addEventListener('click', async () => {
 });
 $('download').addEventListener('click', () => {
   const extension = mode === 'markdown' ? 'md' : 'txt';
-  const stem = (filename || 'translation').replace(/\.(md|markdown)$/i, '').replace(/[\x00-\x1f/\\:*?"<>|]/g, '_');
+  const stem = (filename || 'translation').replace(/\.(txt|md|markdown)$/i, '').replace(/[\x00-\x1f/\\:*?"<>|]/g, '_');
   const name = `${stem}.${plan.target}${complete ? '' : '.partial'}.${extension}`;
   const blob = new Blob([output], { type: `${mode === 'markdown' ? 'text/markdown' : 'text/plain'};charset=utf-8` });
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
