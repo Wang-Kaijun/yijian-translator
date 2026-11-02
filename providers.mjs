@@ -1,5 +1,6 @@
 // Browser-safe configuration. Never place credentials in these presets.
 export const PROVIDERS = Object.freeze({
+  openai: { name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-6-luna', models: ['gpt-6-luna', 'gpt-6.1-terra', 'gpt-6.1-sol', 'gpt-6-astra'], keyUrl: 'https://platform.openai.com/api-keys', hint: '使用 OpenAI 官方接口，按账户价格与额度计费。可获取模型列表或手动填写模型 ID；请选择支持聊天补全的文本模型。' },
   modelscope: { name: '魔搭 ModelScope', baseUrl: 'https://api-inference.modelscope.cn/v1', model: 'Qwen/Qwen3.8-Flash-Next', models: ['Qwen/Qwen3.8-Flash-Next'], keyUrl: 'https://modelscope.cn/my/myaccesstoken' },
   groq: { name: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', models: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'], keyUrl: 'https://console.groq.com/keys' },
   openrouter: { name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'qwen/qwen3.8-27b:free', models: ['qwen/qwen3.8-27b:free'], keyUrl: 'https://openrouter.ai/settings/keys', hint: '默认选择免费模型（:free）。免费接口有限流，模型可用性可能变化；修改为付费模型会按服务商规则计费。' },
@@ -61,6 +62,8 @@ export function browserNetworkOptions(baseUrl) {
 }
 
 export function generationOptions(type, model) {
+  // Omit the shared temperature default: OpenAI reasoning models may reject it.
+  if (type === 'openai') return { max_completion_tokens: 8192, temperature: undefined };
   if (type === 'localai') return { reasoning_effort: 'none', max_tokens: 8192 };
   if (type === 'groq') return { max_completion_tokens: 4096, ...(model.startsWith('openai/gpt-oss-') ? { reasoning_effort: 'low', include_reasoning: false } : {}) };
   if (type === 'modelscope') return { max_tokens: 8192, enable_thinking: false };
@@ -72,6 +75,7 @@ export function generationOptions(type, model) {
 
 // Verified official pricing sources, 2026-10-22. Never infer free pricing for custom endpoints.
 export const PRICING_SOURCES = {
+  openai: 'https://developers.openai.com/api/docs/pricing', // Verified 2026-11-02.
   zhipu: 'https://www.zhipuai.cn/zh/news/148',
   siliconflow: 'https://www.siliconflow.cn/pricing',
   openrouter: 'https://openrouter.ai/support',
