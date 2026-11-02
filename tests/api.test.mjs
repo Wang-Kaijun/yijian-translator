@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { translateWithProvider } from '../src/api.mjs';
+import { translateWithProvider, fetchModels } from '../src/api.mjs';
 import { PROVIDERS, validateExternalProvider } from '../providers.mjs';
 const items = [{ id: 'a', text: 'Hello' }];
 const translations = [{ id: 'a', text: '你好' }];
@@ -8,7 +8,7 @@ const response = () => Response.json({ choices: [{ message: { content: JSON.stri
 const request = type => ({ provider: { type, ...PROVIDERS[type], apiKey: 'test-only-secret-canary' }, model: PROVIDERS[type].model, target: 'zh', items, allowLocal: false });
 
 test('each external key goes only to its selected HTTPS endpoint in the authorization header', async () => {
-  for (const type of ['modelscope', 'groq', 'openrouter', 'siliconflow', 'zhipu']) {
+  for (const type of ['openai', 'modelscope', 'groq', 'openrouter', 'siliconflow', 'zhipu']) {
     let calls = 0;
     const result = await translateWithProvider(request(type), async (url, options) => {
       calls++;
@@ -52,4 +52,33 @@ test('rate limit retry respects bounded Retry-After and abort does not issue a r
 test('presets pin full endpoint paths and reject malformed authorization values', () => {
   for (const baseUrl of ['https://api.groq.com/other', 'https://api.groq.com/openai/v1?key=x', 'https://api.groq.com.evil.example/openai/v1']) assert.throws(() => validateExternalProvider({ ...request('groq').provider, baseUrl }));
   assert.throws(() => validateExternalProvider({ ...request('groq').provider, apiKey: 'key\r\nInjected: true' }));
+});
+
+test('OpenAI text models use compatible completion parameters without shared sampling defaults', async () => {
+  for (const model of [...PROVIDERS.openai.models, 'gpt-4.1']) {
+    const result = await translateWithProvider({ ...request('openai'), model }, async (url, options) => {
+      const payload = JSON.parse(options.body);
+      assert.equal(payload.model, model);
+      assert.equal(payload.max_completion_tokens, 8192);
+      for (const unsupported of ['max_tokens', 'temperature', 'enable_thinking', 'thinking', 'include_reasoning']) {
+        assert.ok(!Object.hasOwn(payload, unsupported), unsupported);
+      }
+      return response();
+    });
+    assert.deepEqual(result, translations);
+  }
+});
+
+test('OpenAI model discovery uses its pinned endpoint and only its own key', async () => {
+  const ids = await fetchModels(request('openai').provider, undefined, async (url, options) => {
+    assert.equal(url, 'https://api.openai.com/v1/models');
+    assert.equal(options.headers.Authorization, 'Bearer test-only-secret-canary');
+    assert.equal(options.redirect, 'error');
+    assert.equal(options.credentials, 'omit');
+    return Response.json({ data: [{ id: 'gpt-6-luna' }, { id: 'gpt-6.1-terra' }, { id: 'gpt-6-luna' }] });
+  });
+  assert.deepEqual(ids, ['gpt-6-luna', 'gpt-6.1-terra']);
+  for (const baseUrl of ['https://api.openai.com/other', 'https://api.openai.com.evil.example/v1']) {
+    await assert.rejects(fetchModels({ ...request('openai').provider, baseUrl }, undefined, () => assert.fail('No request allowed')));
+  }
 });
