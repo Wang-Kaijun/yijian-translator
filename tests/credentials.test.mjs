@@ -56,7 +56,7 @@ test('unavailable storage permits memory mode but never claims persistence succe
   const values = new Map();
   const storage = { getItem: k => values.get(k) ?? null, setItem: (k,v) => values.set(k,v), removeItem: k => values.delete(k) };
   const store = createCredentialStore(storage);
-  for (const type of ['openrouter', 'siliconflow', 'zhipu']) {
+  for (const type of ['openai', 'openrouter', 'siliconflow', 'zhipu']) {
     store.save(config(type), false);
     assert.equal(createCredentialStore(storage).read(type), null);
     store.save(config(type), true);

@@ -86,7 +86,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   function providerMenu() {
     const group = (label, entries) => { const el = document.createElement('optgroup'); el.label = label; el.append(...entries); return el; };
     const all = profiles.sites.list();
-    const builtins = ['deepseek', 'zhipu', 'zai', 'openrouter', 'huggingface', 'modelscope', 'groq', 'siliconflow'];
+    const builtins = ['openai', 'deepseek', 'zhipu', 'zai', 'openrouter', 'huggingface', 'modelscope', 'groq', 'siliconflow'];
     $('savedSite').replaceChildren(group('内置服务商', builtins.map(type => option('preset:' + type, presets[type].name + (all.some(s => s.type === type) ? ' · 已配置' : '')))), group('我的服务商', all.filter(s => !builtin(s.type) || all.find(x => x.type === s.type)?.id !== s.id).map(s => option(s.id, s.label))));
     if (!builtin(profiles.own(scope).type)) $('savedSite').append(option('__legacy', '当前独立配置'));
     $('savedSite').append(option('__new', '＋ 新建自定义服务商'));
