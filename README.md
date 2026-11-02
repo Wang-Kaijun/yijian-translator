@@ -54,6 +54,7 @@ Ollama 需要配置 `OLLAMA_ORIGINS=https://wang-kaijun.github.io` 并重启；�
 
 | 服务商 | 默认模型 | 接口基础地址 |
 | --- | --- | --- |
+| OpenAI | `gpt-6-luna` | `https://api.openai.com/v1` |
 | 魔搭 ModelScope | `Qwen/Qwen3.8-Flash-Next` | `https://api-inference.modelscope.cn/v1` |
 | Groq | `openai/gpt-oss-120b` | `https://api.groq.com/openai/v1` |
 | OpenRouter | `qwen/qwen3.8-27b:free` | `https://openrouter.ai/api/v1` |
@@ -65,7 +66,9 @@ Ollama 需要配置 `OLLAMA_ORIGINS=https://wang-kaijun.github.io` 并重启；�
 
 OpenRouter、硅基流动和智谱默认选择核对于 2026-10-15 的免费模型；免费模型仍有限流，政策以服务商为准。已有浏览器保存的模型设置不会自动覆盖，智谱老用户可将模型 ID 改为 `glm-4.7-flash`。
 
-预设模型 ID 可以修改。获取密钥：[魔搭](https://modelscope.cn/my/myaccesstoken)、[Groq](https://console.groq.com/keys)。免费额度、模型可用性、地区限制和超额费用由服务商决定，网页不提供共享密钥。
+OpenAI 位于内置服务商列表首位，预设 `gpt-6-luna`、`gpt-6.1-terra`、`gpt-6.1-sol` 和 `gpt-6-astra`，按账户价格与额度计费。模型与请求参数依据 [OpenAI 官方模型文档](https://developers.openai.com/api/docs/models/gpt-6-luna)及[接入指南](https://developers.openai.com/api/docs/guides/latest-model)于 2026-11-02 核对；使用聊天补全接口的 `max_completion_tokens`，不发送推理模型可能不支持的 `temperature`。排序调整不覆盖已有服务商、模型或密钥设置。
+
+预设模型 ID 可以修改。获取密钥：[OpenAI](https://platform.openai.com/api-keys)、[魔搭](https://modelscope.cn/my/myaccesstoken)、[Groq](https://console.groq.com/keys)。免费额度、模型可用性、地区限制和超额费用由服务商决定，网页不提供共享密钥。
 
 ## 密钥与文件
 
@@ -148,7 +151,7 @@ npm run build:pages
 
 ### 服务商配置、备份与 WebDAV
 
-模型设置使用单一服务商选择器，内置 DeepSeek、智谱中国 / 海外、OpenRouter、Hugging Face、ModelScope、Groq、硅基流动；自建服务商集中在「我的服务商」，支持创建、重命名和删除。模型下拉选项区分免费模型、Free Plan 和试用额度；免费信息依据官方资料于 2026-10-22 核对，实际限额与费用以账户为准。模型价格来源见 `providers.mjs` 的 `PRICING_SOURCES`。
+模型设置使用单一服务商选择器，内置 OpenAI（列表首位）、DeepSeek、智谱中国 / 海外、OpenRouter、Hugging Face、ModelScope、Groq、硅基流动；自建服务商集中在「我的服务商」，支持创建、重命名和删除。模型下拉选项区分免费模型、Free Plan 和试用额度；免费信息依据官方资料于 2026-10-22 核对，实际限额与费用以账户为准。模型价格来源见 `providers.mjs` 的 `PRICING_SOURCES`。
 
 配置文件为 `yijian-config` 版本 1 JSON，包含服务商、模型列表及各功能绑定。默认不导出密钥，可主动勾选包含明文密钥。导入先预览，再按稳定 ID 合并；未列出的服务商保留。相同 ID 的地址变更会丢弃原密钥，不会转发到新接口。导入密钥默认只保存在本页；另行勾选才持久化。文件最大 1 MB，最多 100 个服务商，每个最多 500 个模型。
 
