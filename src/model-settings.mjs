@@ -95,7 +95,9 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   function selectSite() {
     const selected = $('savedSite').value;
     const site = selectedSite();
-    $('siteActions').hidden = scope !== 'global' || !site || selected.startsWith('preset:');
+    // Built-in presets stay in the menu, but their saved configuration can be deleted.
+    $('siteActions').hidden = scope !== 'global' || !site;
+    $('renameSite').hidden = selected.startsWith('preset:');
     $('addProvider').hidden = scope !== 'global';
     $('siteRenamePanel').hidden = true; $('siteDeletePanel').hidden = true;
     const linked = scope !== 'global' && Boolean(site);
