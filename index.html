@@ -10,8 +10,8 @@
   <title>译间 · 翻译、润色与 De-Claudish</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <script src="./theme.js?v=2d2b27346b911226"></script>
-  <link rel="stylesheet" href="./style.css?v=2f20243c49369285">
-  <script type="module" src="./app.js?v=e91be18e85e40cea"></script>
+  <link rel="stylesheet" href="./style.css?v=5a4e9785e492cdc2">
+  <script type="module" src="./app.js?v=e668bd67c781012b"></script>
 </head>
 <body>
   <div class="shell">
@@ -124,7 +124,7 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
           <div class="action-bar"><button id="declaudishSettings" class="model-picker" aria-label="设置 De-Claudish 模型" hidden><span class="engine-icon" aria-hidden="true">✳</span><span class="model-picker-text"><span id="declaudishEngine" class="model-picker-label">本功能模型</span><span id="declaudishModelName" class="model-picker-name">设置模型</span></span><span class="model-picker-action">设置 ↗</span></button><span id="pawEngineLabel" class="settings-note">官方 Claudish → English</span><div class="translate-actions"><button id="stopDeclaudish" class="stop-button" hidden>停止</button><button id="runDeclaudish" class="primary-button" disabled>精简英文表达</button></div></div>
         </section>
         <div class="status-row"><p id="declaudishStatus" role="status" aria-live="polite">选择运行方式并输入英文。PAW 上下文较短，较长文本请分段处理。</p></div>
-        <p class="writing-privacy">改写规则与原版程序来自 <a href="https://github.com/programasweights/claudish" target="_blank" rel="noopener noreferrer">Claudish</a>（MIT）。本应用不保存原文或结果。切换运行方式不会自动发送文本。</p>
+        <p class="writing-privacy">改写规则改编自 <a href="https://github.com/programasweights/claudish" target="_blank" rel="noopener noreferrer">Claudish</a>（MIT），PAW 模式调用其官方程序。本应用不保存原文或结果。切换运行方式不会自动发送文本。</p>
       </section>
       <section id="regionalPanel" role="tabpanel" aria-labelledby="regionalTab" hidden>
         <section class="workspace-intro"><p class="eyebrow">ONE MEANING, LOCAL EXPRESSIONS</p><h1>同一个意思，各地自然表达。</h1><p class="subtitle">从大陆简体中文出发，转换为港、台、新加坡、英、美的七种表达，兼顾字形、用词与语法习惯。</p></section>
@@ -181,7 +181,10 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
         </div>
       </section>
     </main>
-    <footer class="page-footer"><span>译间 <span class="footer-dot">·</span> 两种语言，一个工作台</span><span id="hostingNote">GitHub Pages · 浏览器直连</span></footer>
+    <footer class="page-footer">
+      <span>译间 <span class="footer-dot">·</span> 两种语言，一个工作台</span>
+      <div class="footer-details"><nav class="footer-links" aria-label="项目链接"><a href="https://github.com/Wang-Kaijun/yijian-translator" target="_blank" rel="noopener noreferrer">GitHub 仓库 ↗</a><a href="./licenses.txt?v=58b7a65d3612028e" target="_blank" rel="noopener noreferrer">开源许可 ↗</a></nav><span id="hostingNote">GitHub Pages · 浏览器直连</span></div>
+    </footer>
   </div>
   <dialog id="settingsDialog" aria-labelledby="settingsTitle">
     <div id="settingsForm">
