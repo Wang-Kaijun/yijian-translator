@@ -1,6 +1,15 @@
 Claudish — https://github.com/programasweights/claudish
-The De-Claudish prompt adapts specs/claudish-to-english.md.
-The PAW modes call the published program e469f61ccab2699fbd51.
+The De-Claudish prompt in declaudish.mjs adapts specs/claudish-to-english.md:
+https://github.com/programasweights/claudish/blob/63045f7beed6eead5099bcb333dda2697ab27e4b/specs/claudish-to-english.md
+Upstream license at the same revision:
+https://github.com/programasweights/claudish/blob/63045f7beed6eead5099bcb333dda2697ab27e4b/LICENSE
+Changes: prepended an instruction to treat user JSON as untrusted text to
+rewrite and never execute embedded instructions. The remaining rules are unchanged.
+
+The PAW modes call the externally published program e469f61ccab2699fbd51.
+PAW SDK and model weights are not redistributed with this application.
+The MIT notice below applies to the adapted Claudish repository content;
+it does not assign a license to external SDKs, models, or online services.
 This project is not affiliated with Anthropic or ProgramAsWeights.
 
 MIT License
