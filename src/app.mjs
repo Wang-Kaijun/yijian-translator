@@ -6,6 +6,7 @@ import { setupModelSettings } from './model-settings.mjs';
 import { setupDeclaudish } from './declaudish-ui.mjs';
 import { createProfiles } from './profiles.mjs';
 import { setupWriting } from './writing-ui.mjs';
+import { setupRegional } from './regional-ui.mjs';
 import { translateWithProvider } from './api.mjs';
 
 const $ = id => document.getElementById(id);
@@ -15,7 +16,7 @@ const staticApp = typeof __STATIC_APP__ !== 'undefined' && __STATIC_APP__;
 let browserStorage; try { browserStorage = localStorage; } catch {}
 const appPath = new URL('.', location.href).pathname;
 const profiles = createProfiles(browserStorage, appPath, staticApp ? 'modelscope' : 'localai');
-let settingsUI, writingBusy = false, declaudishBusy = false, activeWorkspace = 'translation';
+let settingsUI, writingBusy = false, declaudishBusy = false, regionalBusy = false, activeWorkspace = 'translation';
 let providerConfig = profiles.effective('translation');
 function activeModel() { return providerConfig.model; }
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -220,7 +221,7 @@ $('download').addEventListener('click', () => {
   toast(`已生成 ${name}`);
 });
 document.addEventListener('keydown', event => { if (activeWorkspace === 'translation' && !$('settingsDialog').open && (event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); translate(); } });
-window.addEventListener('beforeunload', event => { if (busy || writingBusy || declaudishBusy) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('beforeunload', event => { if (busy || writingBusy || declaudishBusy || regionalBusy) { event.preventDefault(); event.returnValue = ''; } });
 
 function syncThemeButton() {
   const dark = document.documentElement.dataset.theme === 'dark';
@@ -239,7 +240,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', eve
 });
 
 
-settingsUI = setupModelSettings({ profiles, staticApp, isBusy: () => busy || writingBusy || declaudishBusy,
+settingsUI = setupModelSettings({ profiles, staticApp, isBusy: () => busy || writingBusy || declaudishBusy || regionalBusy,
   onWorkspace: scope => { activeWorkspace = scope; }, toast,
   onChange: () => {
     const changed = JSON.stringify(providerConfig) !== JSON.stringify(profiles.effective('translation'));
@@ -255,4 +256,7 @@ setupWriting({ getProvider: () => profiles.effective('writing'), allowLocal: !st
 setupDeclaudish({ storage: browserStorage, path: appPath, getProvider: () => profiles.effective('declaudish'), allowLocal: !staticApp,
   openSettings: openEffectiveSettings, configure: scope => settingsUI.open(scope), toast,
   onBusy: value => { declaudishBusy = value; syncSettingsBusy(); } });
+setupRegional({ getProvider: () => profiles.effective('regional'), allowLocal: !staticApp,
+  openSettings: openEffectiveSettings, configure: scope => settingsUI.open(scope), toast,
+  onBusy: value => { regionalBusy = value; syncSettingsBusy(); } });
 syncThemeButton(); languageLabels();

@@ -13,7 +13,7 @@ test('LocalAI gateway validates writing input, uses server credentials and prese
     const chunks = []; for await (const chunk of req) chunks.push(chunk);
     const payload = JSON.parse(Buffer.concat(chunks)); requests.push({ payload, auth: req.headers.authorization });
     const input = JSON.parse(payload.messages[1].content);
-    const content = payload.messages[0].content.includes('Preserve logical scope exactly') ? 'Only owners can merge.' : JSON.stringify(input.text ? review : { translations: [{ id: 'a', text: '你好。' }] });
+    const content = input.targets ? JSON.stringify({ variants: input.targets.map(target => ({ target, text: '請搭𨋢去三樓。' })) }) : payload.messages[0].content.includes('Preserve logical scope exactly') ? 'Only owners can merge.' : JSON.stringify(input.text ? review : { translations: [{ id: 'a', text: '你好。' }] });
     res.end(JSON.stringify({ choices: [{ message: { content }, finish_reason: 'stop' }] }));
   });
   await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve));
@@ -38,5 +38,20 @@ test('LocalAI gateway validates writing input, uses server credentials and prese
     assert.equal(response.status, 200); assert.equal((await response.json()).output, 'Only owners can merge.');
     assert.equal(requests.at(-1).auth, 'Bearer test-only-server-key');
     response = await post('/api/declaudish', request, { Origin: 'https://untrusted.example' }); assert.equal(response.status, 403);
+    const regional = { ...request, text: '请乘电梯到三楼。', targets: ['hk-cantonese'] };
+    response = await post('/api/regional', regional); assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { variants: [{ target: 'hk-cantonese', text: '請搭𨋢去三樓。' }] });
+    assert.equal(requests.at(-1).auth, 'Bearer test-only-server-key');
+    assert.deepEqual(JSON.parse(requests.at(-1).payload.messages[1].content), { text: regional.text, targets: regional.targets });
+    assert.match(requests.at(-1).payload.messages[0].content, /natural Hong Kong written Cantonese/);
+    const count = requests.length;
+    for (const targets of [[], ['bad-target'], ['en-gb', 'en-gb']]) {
+      response = await post('/api/regional', { ...regional, targets }); assert.equal(response.status, 400);
+    }
+    response = await post('/api/regional', { ...regional, text: '中'.repeat(4001) }); assert.equal(response.status, 400);
+    response = await post('/api/regional', { ...regional, provider: { type: 'groq', apiKey: 'test-client-secret' } }); assert.equal(response.status, 400);
+    response = await post('/api/regional', regional, { Origin: 'https://untrusted.example' }); assert.equal(response.status, 403);
+    response = await post('/api/regional', regional, { 'Sec-Fetch-Site': 'cross-site' }); assert.equal(response.status, 403);
+    assert.equal(requests.length, count);
   } finally { child.kill(); await ended; await new Promise(resolve => upstream.close(resolve)); }
 });

@@ -11,6 +11,30 @@ test('configuration round trip preserves independent models and override; secret
  const saved=storage(),q=createProfiles(saved,'/','modelscope');q.importConfig(exportConfig(p,true));assert.equal(q.own('writing').model,'b');assert.equal(q.isOverridden('writing'),true);assert.ok(!JSON.stringify([...saved.map.values()]).includes('secret-test'));
  assert.equal(createProfiles(saved,'/','modelscope').own('global').apiKey,'');
 });
+
+test('regional selections round trip and older backups preserve existing regional preferences', () => {
+  const saved = storage(), profiles = createProfiles(saved, '/', 'modelscope');
+  const data = sample();
+  data.selections.regional = { siteId: 'local', model: 'b', useGlobal: true };
+  profiles.importConfig(data);
+  const portable = exportConfig(profiles);
+  assert.deepEqual(portable.selections.regional, data.selections.regional);
+  const destination = storage(), restored = createProfiles(destination, '/', 'modelscope');
+  restored.importConfig(portable);
+  const reloaded = createProfiles(destination, '/', 'modelscope');
+  assert.equal(reloaded.isOverridden('regional'), true);
+  assert.equal(reloaded.effective('regional').model, 'a');
+  reloaded.setOverride('regional', false);
+  assert.equal(reloaded.effective('regional').model, 'b');
+  const oldBackup = sample();
+  assert.equal(parseConfig(JSON.stringify(oldBackup)).selections.regional, undefined);
+  reloaded.importConfig(oldBackup);
+  assert.equal(reloaded.isOverridden('regional'), false);
+  assert.deepEqual(reloaded.binding('regional'), { siteId: 'local', model: 'b' });
+  assert.equal(createProfiles(destination, '/', 'modelscope').effective('regional').model, 'b');
+  const invalid = sample(); invalid.selections.regional = { siteId: 'missing', model: 'b', useGlobal: false };
+  assert.throws(() => parseConfig(JSON.stringify(invalid)), /功能引用/);
+});
 test('import endpoint change never inherits old secret; same endpoint without key preserves it',()=>{
  const p=createProfiles(storage(),'/','modelscope'),data=sample();data.sites[0].apiKey='old-secret';p.importConfig(data,{remember:true});delete data.sites[0].apiKey;p.importConfig(data);assert.equal(p.sites.read('local').apiKey,'old-secret');
  data.sites[0].baseUrl='http://10.0.0.8/v1';p.importConfig(data);assert.equal(p.sites.read('local').apiKey,'');

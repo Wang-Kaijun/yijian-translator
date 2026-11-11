@@ -5,7 +5,7 @@ import { cleanModels } from './sites.mjs';
 
 export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWorkspace, toast }) {
   const $ = id => document.getElementById(id);
-  const names = { translation: '翻译', writing: '语法与润色', declaudish: 'De-Claudish', global: '全局' };
+  const names = { translation: '翻译', writing: '语法与润色', declaudish: 'De-Claudish', regional: '地区表达转换', global: '全局' };
   let scope = 'translation', controller = null, workspace = 'translation', editorModels = [];
   const option = (value, text) => { const el = document.createElement('option'); el.value = value; el.textContent = text; return el; };
   const manualModel = '__manual_model__';
@@ -29,7 +29,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   const error = e => { $('settingsStatus').textContent = e.message; $('settingsStatus').classList.add('error'); };
 
   function refresh() {
-    for (const [feature, label, model] of [['translation', 'engineLabel', 'modelName'], ['writing', 'writingEngine', 'writingModelName'], ['declaudish', 'declaudishEngine', 'declaudishModelName']]) {
+    for (const [feature, label, model] of [['translation', 'engineLabel', 'modelName'], ['writing', 'writingEngine', 'writingModelName'], ['declaudish', 'declaudishEngine', 'declaudishModelName'], ['regional', 'regionalEngine', 'regionalModelName']]) {
       const config = profiles.effective(feature);
       $(label).textContent = (profiles.isOverridden(feature) ? '使用全局模型' : '本功能模型') + ' · ' + (config.label || presets[config.type]?.name || 'LocalAI');
       $(model).textContent = config.model || '请设置模型';
@@ -37,12 +37,13 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     const destination = c => c.type === 'localai' ? 'LocalAI（局域网）' : c.baseUrl ? new URL(c.baseUrl).hostname : '所选接口';
     $('privacyDestination').textContent = '待译文本仅发送至 ' + destination(profiles.effective('translation'));
     $('writingDestination').textContent = '待检查英文仅发送至 ' + destination(profiles.effective('writing')) + '。本应用不保存英文内容或检查结果。';
-    $('globalUsage').textContent = ['translation', 'writing', 'declaudish'].map(s => names[s] + '：' + (profiles.isOverridden(s) ? '使用全局模型' : '独立选择模型')).join('；');
+    $('privacyRegionalDestination').textContent = '待转换文本仅发送至 ' + destination(profiles.effective('regional')) + '。本应用不保存原文或转换结果。';
+    $('globalUsage').textContent = ['translation', 'writing', 'declaudish', 'regional'].map(s => names[s] + '：' + (profiles.isOverridden(s) ? '使用全局模型' : '独立选择模型')).join('；');
     onChange();
   }
   function syncBusy() {
     const locked = isBusy() || Boolean(controller);
-    for (const id of ['settings', 'writingSettings', 'declaudishSettings', 'deployLocalModel']) $(id).disabled = locked;
+    for (const id of ['settings', 'writingSettings', 'declaudishSettings', 'regionalSettings', 'deployLocalModel']) $(id).disabled = locked;
     for (const el of $('settingsForm').querySelectorAll('input, select, textarea, button')) {
       if (!['closeSettings', 'cancelSettings'].includes(el.id)) el.disabled = locked;
     }
@@ -294,6 +295,6 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
   if (staticApp) $('providerType').querySelector('[value="localai"]')?.remove();
   setupConfigTransfer({ profiles, onChange: () => { load('global'); refresh(); }, isBusy: () => isBusy() || Boolean(controller) });
   refresh();
-  if (location.hash === '#global') switchWorkspace('global');
+  if (Object.hasOwn(names, location.hash.slice(1))) switchWorkspace(location.hash.slice(1));
   return { open, openEffective, syncBusy, refresh, error, switchWorkspace };
 }

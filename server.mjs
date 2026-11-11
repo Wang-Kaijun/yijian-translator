@@ -6,6 +6,7 @@ import { translationPrompt, parseCompletion } from './prompts.mjs';
 import { generationOptions } from './providers.mjs';
 import { writingPrompt, validateWritingInput, parseWritingCompletion } from './writing.mjs';
 import { declaudishPrompt, parseDeclaudishOutput } from './declaudish.mjs';
+import { regionalPrompt, validateRegionalInput, parseRegionalCompletion } from './regional.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const publicRoot = resolve(root, 'public');
@@ -65,10 +66,11 @@ async function body(req) {
   catch { const error = new Error('请求必须是有效的 JSON'); error.status = 400; throw error; }
 }
 
-function validateRequest(data, writing = false) {
-  if (!data || (!writing && !['zh', 'en'].includes(data.target))) throw new Error('翻译方向无效');
+function validateRequest(data, writing = false, regional = false) {
+  if (!data || (!writing && !regional && !['zh', 'en'].includes(data.target))) throw new Error('翻译方向无效');
   if (data.provider && data.provider.type !== 'localai' || data.apiKey || data.provider?.apiKey) throw new Error('外部接口请由浏览器直连；服务器不接收用户 API Key');
   if (!models.includes(data.model)) throw new Error('LocalAI 模型无效');
+  if (regional) { validateRegionalInput(data.text, data.targets); return; }
   if (writing) { validateWritingInput(data.text); return; }
   if (!Array.isArray(data.items) || !data.items.length || data.items.length > 32) throw new Error('无效的文本分段数量');
   const ids = new Set();
@@ -93,7 +95,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { online: true, defaultModel, models, engine: 'LocalAI' });
       } catch { return json(res, 503, { online: false, defaultModel, models: [defaultModel], error: '暂时无法连接 LocalAI，请稍后重试' }); }
     }
-    if (url.pathname === '/api/translate' || url.pathname === '/api/test-provider' || url.pathname === '/api/review' || url.pathname === '/api/declaudish') {
+    if (url.pathname === '/api/translate' || url.pathname === '/api/test-provider' || url.pathname === '/api/review' || url.pathname === '/api/declaudish' || url.pathname === '/api/regional') {
       if (req.method !== 'POST') return json(res, 405, { error: '只支持 POST 请求' }, { Allow: 'POST' });
       if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return json(res, 403, { error: '拒绝跨站请求' });
       if (req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: '拒绝跨站请求' });
@@ -102,11 +104,12 @@ const server = http.createServer(async (req, res) => {
       const testing = url.pathname === '/api/test-provider';
       const writing = url.pathname === '/api/review';
       const declaudish = url.pathname === '/api/declaudish';
+      const regional = url.pathname === '/api/regional';
       if (testing && data) { data.target = 'zh'; data.items = [{ id: 'test', text: 'Hello. Welcome to the translation workspace.' }]; }
       if (data && !models.includes(data.model)) {
         try { await modelList(); } catch { return json(res, 503, { error: '暂时无法获取 LocalAI 模型，请稍后重试' }); }
       }
-      try { validateRequest(data, writing || declaudish); } catch (error) { return json(res, 400, { error: error.message }); }
+      try { validateRequest(data, writing || declaudish, regional); } catch (error) { return json(res, 400, { error: error.message }); }
       if (active >= 2) return json(res, 429, { error: '翻译引擎正在处理其他请求，请稍候' }, { 'Retry-After': '4' });
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 180000);
@@ -114,8 +117,8 @@ const server = http.createServer(async (req, res) => {
       active++;
       try {
         const payload = { model: data.model, temperature: 0.15, ...generationOptions('localai', data.model), stream: false, messages: [
-          { role: 'system', content: declaudish ? declaudishPrompt : writing ? writingPrompt : translationPrompt(data.target) },
-          { role: 'user', content: JSON.stringify(writing || declaudish ? { text: data.text } : { items: data.items.map(({ id, text }) => ({ id, text })) }) },
+          { role: 'system', content: regional ? regionalPrompt(data.targets) : declaudish ? declaudishPrompt : writing ? writingPrompt : translationPrompt(data.target) },
+          { role: 'user', content: JSON.stringify(regional ? { text: data.text, targets: data.targets } : writing || declaudish ? { text: data.text } : { items: data.items.map(({ id, text }) => ({ id, text })) }) },
         ] };
         const response = await fetch(`${upstream}/chat/completions`, {
           method: 'POST',
@@ -131,7 +134,8 @@ const server = http.createServer(async (req, res) => {
         }
         const completion = await response.json();
         const choice = completion?.choices?.[0];
-        if (choice?.finish_reason === 'length') return json(res, 502, { error: '模型输出被截断，请重试当前分段' });
+        if (choice?.finish_reason === 'length') return json(res, 502, { error: regional ? '地区转换结果被截断，请缩短原文后重试。' : '模型输出被截断，请重试当前分段' });
+        if (regional) return json(res, 200, parseRegionalCompletion(choice?.message?.content, data.targets));
         if (declaudish) return json(res, 200, { output: parseDeclaudishOutput(choice?.message?.content) });
         if (writing) return json(res, 200, { review: parseWritingCompletion(choice?.message?.content, data.text) });
         const translations = parseCompletion(choice?.message?.content, data.items);
