@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="中英翻译、英文润色与 De-Claudish 工作台。支持云端及本地模型、官方 PAW 和共享站点配置。">
+  <meta name="description" content="中英翻译、地区表达转换、英文润色与 De-Claudish 工作台。支持云端及本地模型、官方 PAW 和共享站点配置。">
   <meta name="color-scheme" content="light dark">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: http:; object-src 'none'; base-uri 'none'; form-action 'none'">
@@ -24,6 +24,7 @@
         <button id="translationTab" role="tab" aria-selected="true" aria-controls="translationPanel" data-workspace="translation">中英翻译</button>
         <button id="writingTab" role="tab" aria-selected="false" aria-controls="writingPanel" tabindex="-1" data-workspace="writing">语法与润色</button>
         <button id="declaudishTab" role="tab" aria-selected="false" aria-controls="declaudishPanel" tabindex="-1" data-workspace="declaudish">De-Claudish</button>
+        <button id="regionalTab" role="tab" aria-selected="false" aria-controls="regionalPanel" tabindex="-1" data-workspace="regional">地区表达转换</button>
         <button id="globalTab" role="tab" aria-selected="false" aria-controls="globalPanel" tabindex="-1" data-workspace="global">全局模型</button>
       </nav>
       <section id="translationPanel" role="tabpanel" aria-labelledby="translationTab">
@@ -124,6 +125,32 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
         </section>
         <div class="status-row"><p id="declaudishStatus" role="status" aria-live="polite">选择运行方式并输入英文。PAW 上下文较短，较长文本请分段处理。</p></div>
         <p class="writing-privacy">改写规则与原版程序来自 <a href="https://github.com/programasweights/claudish" target="_blank" rel="noopener noreferrer">Claudish</a>（MIT）。本应用不保存原文或结果。切换运行方式不会自动发送文本。</p>
+      </section>
+      <section id="regionalPanel" role="tabpanel" aria-labelledby="regionalTab" hidden>
+        <section class="workspace-intro"><p class="eyebrow">ONE MEANING, LOCAL EXPRESSIONS</p><h1>同一个意思，各地自然表达。</h1><p class="subtitle">从大陆简体中文出发，转换为港、台、新加坡、英、美的七种表达，兼顾字形、用词与语法习惯。</p></section>
+        <section class="workspace writing-workspace regional-workspace" aria-label="六地双语地区表达转换工作台">
+          <fieldset class="regional-target-fieldset">
+            <legend>选择目标表达</legend>
+            <div class="regional-target-toolbar"><p>按原文语气自然表达；新加坡英文默认使用标准英语。</p><div class="regional-target-actions"><span id="regionalTargetCount" aria-live="polite">已选 7 / 7</span><button id="selectAllRegional" class="subtle-button" type="button">全选</button><button id="clearRegionalTargets" class="subtle-button" type="button">清空选择</button></div></div>
+            <div id="regionalTargets" class="regional-target-grid"></div>
+          </fieldset>
+          <div class="editor-grid">
+            <section class="editor-pane source-pane" aria-label="简体中文原文">
+              <div class="pane-heading"><h2>简体中文原文 <span>中国大陆</span></h2><button id="clearRegional" class="subtle-button" type="button">清空</button></div>
+              <label for="regionalSource" class="visually-hidden">输入需要转换地区表达的简体中文</label>
+              <textarea id="regionalSource" lang="zh-Hans-CN" spellcheck="false" maxlength="4000" placeholder="在这里输入或粘贴一段简体中文…&#10;&#10;选择需要的目标，一次生成多个地区版本。"></textarea>
+              <div class="source-footer"><button id="regionalSample" class="sample-button" type="button">试一段示例 ↗</button><span id="regionalCount">0 / 4,000 字符</span></div>
+            </section>
+            <section class="editor-pane result-pane" aria-label="地区表达转换结果">
+              <div class="pane-heading"><h2>各地版本 <span>按目标分别呈现</span></h2></div>
+              <div id="regionalEmpty" class="empty-result"><p>意思相通，表达各有习惯。</p><span>勾选目标后，转换结果将在这里呈现</span></div>
+              <div id="regionalResults" class="writing-results regional-results" tabindex="0" hidden></div>
+            </section>
+          </div>
+          <div class="action-bar"><button id="regionalSettings" class="model-picker" aria-label="设置地区表达转换模型"><span class="engine-icon" aria-hidden="true">✳</span><span class="model-picker-text"><span id="regionalEngine" class="model-picker-label">本功能模型</span><span id="regionalModelName" class="model-picker-name">设置模型</span></span><span class="model-picker-action">设置 ↗</span></button><div class="translate-actions"><span class="shortcut">⌘ / Ctrl + Enter</span><button id="stopRegional" class="stop-button" type="button" hidden>停止</button><button id="runRegional" class="primary-button" type="button" disabled>转换地区表达</button></div></div>
+        </section>
+        <div class="status-row"><p id="regionalStatus" role="status" aria-live="polite">输入简体中文并勾选目标即可开始。地区用法会随语境而变化，请结合用途核对。</p></div>
+        <p id="privacyRegionalDestination" class="writing-privacy"></p>
       </section>
       <section id="globalPanel" role="tabpanel" aria-labelledby="globalTab" hidden>
         <section class="workspace-intro"><p class="eyebrow">YOUR SHARED MODEL</p><h1>全局模型</h1><p class="subtitle">在这里配置共用模型，由各功能分别决定是否使用。</p></section>

@@ -1,10 +1,10 @@
-import { parseConfig } from './config-transfer.mjs';
+import { parseConfig, SCOPES } from './config-transfer.mjs';
 import { createCredentialStore } from './credentials.mjs';
 import { PROVIDERS, validateExternalProvider } from '../providers.mjs';
 import { createSiteLibrary } from './sites.mjs';
 
 export function createProfiles(storage, path, defaultType) {
-  const scopes = ['global', 'translation', 'writing', 'declaudish'];
+  const scopes = SCOPES;
   const features = scopes.filter(scope => scope !== 'global');
   const sites = createSiteLibrary(storage, path);
   const bindings = {};
@@ -45,7 +45,7 @@ export function createProfiles(storage, path, defaultType) {
   const overrideKey = scope => `yijian:global-override:${path}:${scope}`;
   for (const scope of features) {
     let legacyGlobal = false;
-    try { legacyGlobal = Boolean(storage?.getItem(key('global'))); } catch {}
+    try { legacyGlobal = Boolean(storage?.getItem(key('global'))) || scope === 'regional' && Boolean(bindings.global); } catch {}
     overrides[scope] = !configs[scope] && legacyGlobal;
     try {
       const saved = storage?.getItem(overrideKey(scope));

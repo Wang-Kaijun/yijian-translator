@@ -1,7 +1,7 @@
 import { PROVIDERS, validateExternalProvider, localAddressSpace, browserNetworkOptions, isPublicAddress } from '../providers.mjs';
 import { cleanModels } from './sites.mjs';
 export const MAX_CONFIG_BYTES = 1024 * 1024;
-export const SCOPES = ['global', 'translation', 'writing', 'declaudish'];
+export const SCOPES = ['global', 'translation', 'writing', 'declaudish', 'regional'];
 export function parseConfig(text) {
   if (typeof text !== 'string' || new TextEncoder().encode(text).length > MAX_CONFIG_BYTES) throw new Error('配置文件最大为 1 MB。');
   let data; try { data = JSON.parse(text); } catch { throw new Error('请选择有效的 JSON 配置文件。'); }
