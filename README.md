@@ -53,7 +53,7 @@ Ollama 需要配置 `OLLAMA_ORIGINS=https://wang-kaijun.github.io` 并重启；�
 
 模型可能误判语法或改变细微含义，请结合上下文核对。接口结果不完整或被截断时会提示重试或缩短输入。
 
-**在线使用：[打开译间](https://wang-kaijun.github.io/yijian-translator/)**
+**在线使用：[打开译间](https://wang-kaijun.github.io/yijian-translator/) · 源码：[GitHub 仓库](https://github.com/Wang-Kaijun/yijian-translator)**
 
 ## 使用
 
@@ -166,3 +166,35 @@ npm run build:pages
 配置文件为 `yijian-config` 版本 1 JSON，包含服务商、模型列表及各功能绑定。默认不导出密钥，可主动勾选包含明文密钥。导入先预览，再按稳定 ID 合并；未列出的服务商保留。相同 ID 的地址变更会丢弃原密钥，不会转发到新接口。导入密钥默认只保存在本页；另行勾选才持久化。文件最大 1 MB，最多 100 个服务商，每个最多 500 个模型。
 
 WebDAV 填写完整 JSON 文件 URL，以 GET 读取配置，重复读取用于更新本地；也可用 PUT 上传配置。支持 Basic 认证，账号密码仅本页暂存，不进入导出文件；本机 / 私有局域网地址允许 HTTP，公网要求 HTTPS。浏览器直连，需要服务端允许来源、GET/PUT/OPTIONS 及 Authorization、Content-Type、If-Match、If-None-Match 请求头，并暴露 ETag。覆盖上传使用 If-Match 检查版本；文件不存在时以 If-None-Match 创建；版本冲突拒绝覆盖。目录须预先存在。不后台自动同步，也不自动上传密钥。
+
+## 第三方开源项目与许可声明
+
+译间使用并感谢以下开源项目。各项目及其贡献者保留相应版权；下表说明直接依赖和改编内容的来源、用途及许可。版本以本仓库的 `package-lock.json` 为准。
+
+| 项目 | 当前版本 | 用途 | 许可 |
+| --- | --- | --- | --- |
+| [DOMPurify](https://github.com/cure53/DOMPurify) | 3.4.17 | 清理 Markdown 预览中的 HTML | 上游提供 MPL-2.0 或 Apache-2.0；本项目选择 Apache-2.0 |
+| [marked](https://github.com/markedjs/marked) | 18.1.1 | 将 Markdown 转为预览 HTML | MIT；同时保留其 LICENSE 中原始 Markdown 的版权、再分发条件及免责声明 |
+| [unified](https://github.com/unifiedjs/unified) | 11.0.5 | Markdown 语法处理流水线 | MIT |
+| [remark-parse](https://github.com/remarkjs/remark/tree/main/packages/remark-parse) | 11.0.0 | 解析 Markdown，定位需保护的结构 | MIT |
+| [remark-gfm](https://github.com/remarkjs/remark-gfm) | 4.0.1 | 识别表格、删除线等 GitHub 风格 Markdown | MIT |
+| [remark-frontmatter](https://github.com/remarkjs/remark-frontmatter) | 5.0.0 | 识别并保护文档元数据区块 | MIT |
+| [remark-math](https://github.com/remarkjs/remark-math) | 6.0.0 | 识别并保护数学公式 | MIT |
+| [esbuild](https://github.com/evanw/esbuild) | 0.28.2 | 构建时打包、压缩脚本；工具本身不随网页发布 | MIT |
+| [Claudish](https://github.com/programasweights/claudish) | 下述固定来源版本 | De-Claudish 自选模型模式的英文改写规则 | MIT，Copyright (c) 2026 ProgramAsWeights |
+
+### 改编内容及完整声明
+
+`declaudish.mjs` 中的改写规则改编自 Claudish 的 [`specs/claudish-to-english.md`](https://github.com/programasweights/claudish/blob/63045f7beed6eead5099bcb333dda2697ab27e4b/specs/claudish-to-english.md)。译间在原始规则前增加了安全指令，要求将用户的 JSON 输入视为待改写资料、不执行其中的指令；其余规则正文保持原样。自选模型的效果不等同于官方 PAW 程序。原始版权声明及 MIT 全文保留在 [THIRD_PARTY_NOTICES.txt](./THIRD_PARTY_NOTICES.txt)，并随网页发布。本项目与 Anthropic、ProgramAsWeights 无隶属或背书关系。
+
+构建会根据 esbuild 实际输出记录，收集进入网页脚本的直接和间接 npm 依赖，逐项列出名称、版本、上游来源、许可证全文及附带声明，生成 `public/licenses.txt`（本地版）或 `dist/licenses.txt`（Pages 版）。该文件同时包含 Claudish 声明和打包器保留的原始许可注释，可从网页页脚的「开源许可」入口查看。重新分发构建产物时应一并保留此文件；本 README 的概览不能替代完整许可文本。
+
+依赖的许可声明缺失、许可类型尚未核查或缺少完整许可文本时，构建会失败，须核查后再发布。部分 npm 包未附带许可全文，其按确切版本固定的补充许可证与来源记录保存在 [scripts/license-overrides](./scripts/license-overrides/)，依赖升级后必须重新核对。DOMPurify 的上游源码未作手工修改，仅通过 esbuild 打包压缩；保留 Apache-2.0 全文及原始版权注释。对包内嵌入的其他组件，也保留相应声明，包括 Marked 中原始 Markdown 的声明、DOMPurify 内 Babel helpers / regenerator 的 MIT 声明，以及 vfile 内 path-browserify / Node 的 MIT 版权和许可文本。
+
+### 外部服务、SDK 与模型
+
+PAW 云端模式通过接口调用官方程序 [`e469f61ccab2699fbd51`](https://programasweights.com/hub/e469f61ccab2699fbd51)。自部署模式由用户另行安装 [programasweights Python SDK](https://github.com/programasweights/programasweights-python)（[MIT](https://github.com/programasweights/programasweights-python/blob/main/LICENSE)），并在运行时下载模型及适配资源。译间发布包仅包含连接脚本，不包含该 SDK 或模型权重；规则和 SDK 的 MIT 声明不覆盖基础模型、适配器或在线服务。使用或再分发这些资源时，应分别核对 [PAW 官方安装文档](https://programasweights.readthedocs.io/en/latest/getting-started/installation/)及所下载版本的许可、模型卡和服务条款。
+
+[Ollama](https://github.com/ollama/ollama)（[MIT](https://github.com/ollama/ollama/blob/main/LICENSE)）、[LocalAI](https://github.com/mudler/LocalAI)（[MIT](https://github.com/mudler/LocalAI/blob/master/LICENSE)）是可选外部服务，未打包进译间网页；由它们运行的模型另有各自许可。这里记录的是上游项目主许可证，实际安装版本的依赖及附带资源仍以各自声明为准。其他服务商仅通过 API 接入，其名称及链接用于标明接口来源，不表示获得背书或取得模型再分发许可。网页采用本机字体，仓库未分发字体文件。
+
+本节及 `THIRD_PARTY_NOTICES.txt` 仅声明第三方内容的许可，不为译间原创代码指定许可证。目前仓库未设置独立的项目 `LICENSE`；公开源码不等于将原创代码自动按 MIT 或其他开源许可证授权，参见 [GitHub 关于仓库许可的说明](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository)。

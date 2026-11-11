@@ -1,0 +1,31 @@
+{
+  "dompurify@3.4.17": {
+    "license": "Apache-2.0",
+    "supplementalLicense": "MIT",
+    "file": "dompurify-3.4.17-babel-helpers.txt",
+    "sources": [
+      "https://github.com/cure53/DOMPurify/blob/3.4.17/dist/purify.es.mjs",
+      "https://github.com/babel/babel/blob/a0690e39ea63cdcc3d9282ece739e6677c83ad6e/packages/babel-helpers/LICENSE"
+    ],
+    "note": "DOMPurify's published JavaScript embeds Babel helpers, including regenerator-runtime; its source comment links to babel-helpers/LICENSE. This supplement is that linked MIT license, including both Sebastian McKenzie/contributors and Facebook copyrights, pinned to the latest change of the license file (Git blob 37b2c998c41e131cfdd18e93536c73cfaf919ed4). DOMPurify itself remains selected under Apache-2.0. Verified on 2026-11-11; this supplement applies only to DOMPurify 3.4.17."
+  },
+  "format@0.2.2": {
+    "license": "MIT",
+    "file": "format-0.2.2.txt",
+    "sources": [
+      "https://github.com/samsonjs/format/blob/4f898096759776b7c84fa7a25b13c923dadfe46e/Readme.md",
+      "https://github.com/samsonjs/format/blob/4f898096759776b7c84fa7a25b13c923dadfe46e/format.js",
+      "https://sjs.mit-license.org/"
+    ],
+    "note": "The 0.2.2 npm package links to the author's MIT license but omits its full text. The supplement retains both original package copyright notices and the linked license text retrieved on 2026-11-11. The linked page displays the current year; that year does not replace the original package copyright years. This override applies only to version 0.2.2."
+  },
+  "remark-math@6.0.0": {
+    "license": "MIT",
+    "file": "remark-math-6.0.0.txt",
+    "sources": [
+      "https://github.com/remarkjs/remark-math/blob/d5d0660b150810a535bbb07eac6cc96a4510aa24/license",
+      "https://github.com/remarkjs/remark-math/blob/d5d0660b150810a535bbb07eac6cc96a4510aa24/packages/remark-math/package.json"
+    ],
+    "note": "The npm package omits the monorepo root license. This is the unmodified root license at release tag 6.0.0, commit d5d0660b150810a535bbb07eac6cc96a4510aa24; the package.json at that commit identifies remark-math 6.0.0. Verified on 2026-11-11. This override applies only to version 6.0.0."
+  }
+}
