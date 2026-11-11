@@ -18,9 +18,7 @@ export function setupRegional({ getProvider, allowLocal, openSettings, configure
     const label = node('label', '', 'regional-target');
     const input = document.createElement('input');
     input.type = 'checkbox'; input.name = 'regionalTarget'; input.value = target.id; input.checked = true;
-    const description = node('span', '', 'regional-target-text');
-    description.append(node('strong', target.label), node('small', target.description));
-    label.append(input, description); $('regionalTargets').append(label);
+    label.append(input, node('strong', target.label)); $('regionalTargets').append(label);
     return input;
   });
   const selected = () => choices.filter(input => input.checked).map(input => input.value);
