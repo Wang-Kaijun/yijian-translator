@@ -62,6 +62,16 @@
 
 /* Keep model selection visibly distinct from manual ID entry. */
 .form-field select[id$="ModelChoice"],.form-field #localSettingsModelChoice{appearance:auto;min-height:44px;width:100%;min-width:0;padding-right:12px}
+.model-sort{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;width:min(100%,23rem);padding:4px;border:1px solid #d8e3ce;border-radius:10px;background:#edf3e8}
+.model-sort button{min-height:44px;padding:7px 8px;border:1px solid transparent;border-radius:6px;background:transparent;color:#365639;font-size:13px;font-weight:600;line-height:1.4}
+.model-sort button[aria-pressed=true]{background:#3d6844;color:#fff}
+.model-sort button[aria-pressed=false]:hover:not(:disabled){background:#dee9d8}
+.model-sort button:focus-visible{outline:2px solid #3d6844;outline-offset:2px}
+[data-theme=dark] .model-sort{border-color:#41583f;background:#17271b}
+[data-theme=dark] .model-sort button{color:#c7d9c0}
+[data-theme=dark] .model-sort button[aria-pressed=true]{background:#b8d4ad;color:#183822}
+[data-theme=dark] .model-sort button[aria-pressed=false]:hover:not(:disabled){background:#2a402d}
+[data-theme=dark] .model-sort button:focus-visible{outline-color:#b8d4ad}
 
 .config-transfer{border-top:1px solid #93a58c44;margin-top:24px;padding-top:24px}.config-transfer h3{font-size:14px}.config-transfer .test-row{flex-wrap:wrap;gap:10px}.config-transfer input:not([type=checkbox]){width:100%;min-width:0}.transfer-check{display:flex;gap:8px;align-items:flex-start;font-size:12px;margin:12px 0;line-height:1.6}.config-transfer details{margin-top:18px}.config-transfer ul{padding-left:20px;max-height:240px;overflow:auto;overflow-wrap:anywhere}.config-transfer summary{cursor:pointer}.config-transfer .form-field{margin-top:14px}#addProvider{margin-bottom:16px}#siteActions{margin-top:12px}
 

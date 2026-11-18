@@ -10,8 +10,8 @@
   <title>译间 · 翻译、润色与 De-Claudish</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <script src="./theme.js?v=2d2b27346b911226"></script>
-  <link rel="stylesheet" href="./style.css?v=5a4e9785e492cdc2">
-  <script type="module" src="./app.js?v=e668bd67c781012b"></script>
+  <link rel="stylesheet" href="./style.css?v=a59e1349ed23a895">
+  <script type="module" src="./app.js?v=86afcd5f815decd0"></script>
 </head>
 <body>
   <div class="shell">
@@ -183,7 +183,7 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
     </main>
     <footer class="page-footer">
       <span>译间 <span class="footer-dot">·</span> 两种语言，一个工作台</span>
-      <div class="footer-details"><nav class="footer-links" aria-label="项目链接"><a href="https://github.com/Wang-Kaijun/yijian-translator" target="_blank" rel="noopener noreferrer">GitHub 仓库 ↗</a><a href="./licenses.txt?v=58b7a65d3612028e" target="_blank" rel="noopener noreferrer">开源许可 ↗</a></nav><span id="hostingNote">GitHub Pages · 浏览器直连</span></div>
+      <div class="footer-details"><nav class="footer-links" aria-label="项目链接"><a href="https://github.com/Wang-Kaijun/yijian-translator" target="_blank" rel="noopener noreferrer">GitHub 仓库 ↗</a><a href="./licenses.txt?v=9ee2bcd5a29f9507" target="_blank" rel="noopener noreferrer">开源许可 ↗</a></nav><span id="hostingNote">GitHub Pages · 浏览器直连</span></div>
     </footer>
   </div>
   <dialog id="settingsDialog" aria-labelledby="settingsTitle">
@@ -212,6 +212,14 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
       <label class="form-field">API Key<div class="key-field"><input id="externalKey" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴你自己的 API Key" autocapitalize="off" data-lpignore="true"><button id="showKey" class="subtle-button" type="button">显示</button></div></label>
       <div class="key-options"><label><input id="rememberKey" type="checkbox"> 记住到此浏览器</label><a id="getKey" target="_blank" rel="noopener noreferrer" hidden>获取 API Key ↗</a></div>
       <div class="test-row"><button id="fetchModels" class="secondary-button">获取模型列表</button><span id="modelListStatus" role="status">获取后直接在下方选择，无需复制粘贴</span></div>
+      <div id="modelSortField" class="form-field" hidden>
+        <span id="modelSortLabel">模型排序</span>
+        <div id="modelSort" class="model-sort" role="group" aria-labelledby="modelSortLabel" aria-describedby="modelSortHint">
+          <button type="button" data-model-sort="alphabetical" aria-pressed="true">字母顺序 A–Z</button>
+          <button type="button" data-model-sort="newest" aria-pressed="false">更新时间（新到旧）</button>
+        </div>
+        <small id="modelSortHint" hidden></small>
+      </div>
       <label class="form-field">选择模型<select id="externalModelChoice" aria-label="选择模型 ID"></select><input id="externalModel" type="text" autocomplete="off" spellcheck="false" placeholder="手动输入完整模型 ID" aria-label="手动输入模型 ID" hidden></label>
       <p class="settings-note">默认刷新即清除密钥。勾选后保存在此浏览器的本站存储中。选用同一站点的功能共享该站点密钥；密钥不写入 GitHub。本地无鉴权接口可留空，局域网 HTTP 请求未加密。</p>
       <p class="settings-note">“免费”仍有调用限额；“试用额度”用尽后可能计费。未标注不代表免费。<a id="pricingSource" target="_blank" rel="noopener noreferrer" hidden>查看官方价格与额度 ↗</a></p>
