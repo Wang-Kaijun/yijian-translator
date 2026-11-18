@@ -10,7 +10,7 @@
   <title>译间 · 翻译、润色与 De-Claudish</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <script src="./theme.js?v=2d2b27346b911226"></script>
-  <link rel="stylesheet" href="./style.css?v=a59e1349ed23a895">
+  <link rel="stylesheet" href="./style.css?v=08f6171a1b592535">
   <script type="module" src="./app.js?v=86afcd5f815decd0"></script>
 </head>
 <body>
@@ -213,10 +213,12 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
       <div class="key-options"><label><input id="rememberKey" type="checkbox"> 记住到此浏览器</label><a id="getKey" target="_blank" rel="noopener noreferrer" hidden>获取 API Key ↗</a></div>
       <div class="test-row"><button id="fetchModels" class="secondary-button">获取模型列表</button><span id="modelListStatus" role="status">获取后直接在下方选择，无需复制粘贴</span></div>
       <div id="modelSortField" class="form-field" hidden>
-        <span id="modelSortLabel">模型排序</span>
-        <div id="modelSort" class="model-sort" role="group" aria-labelledby="modelSortLabel" aria-describedby="modelSortHint">
-          <button type="button" data-model-sort="alphabetical" aria-pressed="true">字母顺序 A–Z</button>
-          <button type="button" data-model-sort="newest" aria-pressed="false">更新时间（新到旧）</button>
+        <div class="model-sort-row">
+          <span id="modelSortLabel">排序</span>
+          <div id="modelSort" class="model-sort" role="group" aria-labelledby="modelSortLabel" aria-describedby="modelSortHint">
+            <button class="secondary-button" type="button" data-model-sort="alphabetical" aria-pressed="true">A–Z</button>
+            <button class="secondary-button" type="button" data-model-sort="newest" aria-label="按更新时间从新到旧排序" aria-pressed="false">更新时间 ↓</button>
+          </div>
         </div>
         <small id="modelSortHint" hidden></small>
       </div>
