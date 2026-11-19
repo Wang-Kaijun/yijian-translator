@@ -3,6 +3,7 @@ import { translationPrompt, parseCompletion } from '../prompts.mjs';
 import { writingPrompt, validateWritingInput, parseWritingCompletion } from '../writing.mjs';
 import { declaudishPrompt, validateDeclaudishInput, parseDeclaudishOutput } from '../declaudish.mjs';
 import { REGIONAL_TARGETS, regionalPrompt, validateRegionalInput, parseRegionalCompletion } from '../regional.mjs';
+import { readModelCatalog } from './model-catalog.mjs';
 
 function failure(message, retryable = false, retryAfter = 0) {
   return Object.assign(new Error(message), { retryable, retryAfter });
@@ -93,6 +94,11 @@ async function requestWithProvider({ provider, model, target, targets, items, te
 }
 
 export async function fetchModels(provider, signal, fetchImpl = fetch) {
+  const { models } = await fetchModelCatalog(provider, signal, fetchImpl);
+  return models;
+}
+
+export async function fetchModelCatalog(provider, signal, fetchImpl = fetch) {
   const config = validateExternalProvider(provider, provider.model || 'model-list');
   try {
     const response = await fetchImpl(`${config.baseUrl}/models`, {
@@ -102,9 +108,9 @@ export async function fetchModels(provider, signal, fetchImpl = fetch) {
     });
     if (!response.ok) throw new Error(`获取模型列表失败（HTTP ${response.status}），可手动填写模型 ID。`);
     const data = await response.json();
-    const ids = [...new Set((Array.isArray(data.data) ? data.data : []).map(v => v?.id).filter(v => typeof v === 'string' && v.trim() && v.length <= 200 && !/[\r\n]/.test(v)))].slice(0, 500);
-    if (!ids.length) throw new Error('接口没有返回模型列表，请手动填写。');
-    return ids;
+    const catalog = readModelCatalog(Array.isArray(data?.data) ? data.data : []);
+    if (!catalog.models.length) throw new Error('接口没有返回模型列表，请手动填写。');
+    return catalog;
   } catch (error) {
     if (error instanceof TypeError) throw new Error('无法连接模型列表，请检查服务、CORS 和浏览器本地网络权限；也可手动填写。');
     throw error;

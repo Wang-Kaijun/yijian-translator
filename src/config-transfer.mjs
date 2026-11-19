@@ -1,5 +1,5 @@
 import { PROVIDERS, validateExternalProvider, localAddressSpace, browserNetworkOptions, isPublicAddress } from '../providers.mjs';
-import { cleanModels } from './sites.mjs';
+import { cleanModels, cleanModelTimes } from './model-catalog.mjs';
 export const MAX_CONFIG_BYTES = 1024 * 1024;
 export const SCOPES = ['global', 'translation', 'writing', 'declaudish', 'regional'];
 export function parseConfig(text) {
@@ -13,7 +13,8 @@ export function parseConfig(text) {
     if (typeof entry.label !== 'string' || !entry.label.trim() || entry.label.length > 80 || !Array.isArray(entry.models) || entry.models.length > 500 || entry.models.some(m => typeof m !== 'string' || !m.trim() || m.length > 200 || /[\r\n]/.test(m))) throw new Error('服务商名称或模型列表无效。');
     if (entry.apiKey !== undefined && typeof entry.apiKey !== 'string') throw new Error('API Key 格式无效。');
     const valid = validateExternalProvider({ ...entry, apiKey: entry.apiKey || 'validation-only' });
-    return { ...valid, id: entry.id, label: entry.label.trim(), models: cleanModels([valid.model, ...entry.models]), ...(Object.hasOwn(entry, 'apiKey') ? { apiKey: entry.apiKey.trim() } : { apiKey: undefined }) };
+    const models = cleanModels([valid.model, ...entry.models]);
+    return { ...valid, id: entry.id, label: entry.label.trim(), models, modelTimes: cleanModelTimes(models, entry.modelTimes), apiKey: entry.apiKey?.trim() };
   });
   const selections = {};
   if (data.selections !== undefined && (!data.selections || typeof data.selections !== 'object' || Array.isArray(data.selections))) throw new Error('功能模型选择格式无效。');
@@ -37,7 +38,11 @@ export function exportConfig(profiles, includeSecrets = false) {
     }
     selections[scope] = { siteId: id, model: own.model, useGlobal: profiles.isOverridden(scope) };
   }
-  const data = { format: 'yijian-config', version: 1, sites: sites.map(s => ({ id: s.id, type: s.type, label: s.label, baseUrl: s.baseUrl, model: s.model, models: s.models, ...(includeSecrets ? { apiKey: s.apiKey || '' } : {}) })), selections };
+  const data = { format: 'yijian-config', version: 1, sites: sites.map(s => ({
+    id: s.id, type: s.type, label: s.label, baseUrl: s.baseUrl, model: s.model, models: s.models,
+    ...(s.modelTimes && Object.keys(s.modelTimes).length ? { modelTimes: s.modelTimes } : {}),
+    ...(includeSecrets ? { apiKey: s.apiKey || '' } : {}),
+  })), selections };
   parseConfig(JSON.stringify(data));
   return data;
 }

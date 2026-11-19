@@ -22,9 +22,9 @@
     <main>
       <nav class="workspace-tabs" role="tablist" aria-label="工作台功能">
         <button id="translationTab" role="tab" aria-selected="true" aria-controls="translationPanel" data-workspace="translation">中英翻译</button>
+        <button id="regionalTab" role="tab" aria-selected="false" aria-controls="regionalPanel" tabindex="-1" data-workspace="regional">地区表达转换</button>
         <button id="writingTab" role="tab" aria-selected="false" aria-controls="writingPanel" tabindex="-1" data-workspace="writing">语法与润色</button>
         <button id="declaudishTab" role="tab" aria-selected="false" aria-controls="declaudishPanel" tabindex="-1" data-workspace="declaudish">De-Claudish</button>
-        <button id="regionalTab" role="tab" aria-selected="false" aria-controls="regionalPanel" tabindex="-1" data-workspace="regional">地区表达转换</button>
         <button id="globalTab" role="tab" aria-selected="false" aria-controls="globalPanel" tabindex="-1" data-workspace="global">全局模型</button>
       </nav>
       <section id="translationPanel" role="tabpanel" aria-labelledby="translationTab">
@@ -127,11 +127,11 @@ python paw-bridge.py --host 0.0.0.0</code></pre><p>填入那台电脑的地址�
         <p class="writing-privacy">改写规则改编自 <a href="https://github.com/programasweights/claudish" target="_blank" rel="noopener noreferrer">Claudish</a>（MIT），PAW 模式调用其官方程序。本应用不保存原文或结果。切换运行方式不会自动发送文本。</p>
       </section>
       <section id="regionalPanel" role="tabpanel" aria-labelledby="regionalTab" hidden>
-        <section class="workspace-intro"><p class="eyebrow">ONE MEANING, LOCAL EXPRESSIONS</p><h1>同一个意思，各地自然表达。</h1><p class="subtitle">从大陆简体中文出发，转换为港、台、新加坡、英、美的七种表达，兼顾字形、用词与语法习惯。</p></section>
-        <section class="workspace writing-workspace regional-workspace" aria-label="六地双语地区表达转换工作台">
+        <section class="workspace-intro"><p class="eyebrow">ONE MEANING, LOCAL EXPRESSIONS</p><h1>同一个意思，各地自然表达。</h1><p class="subtitle">从大陆简体中文出发，转换为港、台、新加坡、英、美的八种表达，兼顾字形、用词与语法习惯。</p></section>
+        <section class="workspace writing-workspace regional-workspace" aria-label="地区表达转换工作台">
           <fieldset class="regional-target-fieldset">
             <legend>选择目标表达</legend>
-            <div class="regional-target-toolbar"><p>按原文语气自然表达；新加坡英文默认使用标准英语。</p><div class="regional-target-actions"><span id="regionalTargetCount" aria-live="polite">已选 7 / 7</span><button id="selectAllRegional" class="subtle-button" type="button">全选</button><button id="clearRegionalTargets" class="subtle-button" type="button">清空选择</button></div></div>
+            <div class="regional-target-toolbar"><p>按原文语气自然表达；新加坡英文使用标准英语，Singlish 使用自然口语表达。</p><div class="regional-target-actions"><span id="regionalTargetCount" aria-live="polite">已选 8 / 8</span><button id="selectAllRegional" class="subtle-button" type="button">全选</button><button id="selectChineseRegional" class="subtle-button" type="button">全部中文</button><button id="selectEnglishRegional" class="subtle-button" type="button">全部英文</button><button id="clearRegionalTargets" class="subtle-button" type="button">清空选择</button></div></div>
             <div id="regionalTargets" class="regional-target-grid"></div>
           </fieldset>
           <div class="editor-grid">

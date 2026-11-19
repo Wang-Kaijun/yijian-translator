@@ -11,11 +11,47 @@ const options = extra => ({ provider, model: provider.model, text, targets, allo
 const completion = variants => Response.json({ choices: [{ message: { content: JSON.stringify({ variants }) }, finish_reason: 'stop' }] });
 
 test('regional input validates Chinese content, length and a nonempty distinct supported target set', () => {
-  assert.equal(REGIONAL_TARGETS.length, 7);
+  assert.equal(REGIONAL_TARGETS.length, 8);
   assert.equal(validateRegionalInput(text, targets), text);
   assert.equal(validateRegionalInput('请安装 OpenAI SDK。', ['sg-english']), '请安装 OpenAI SDK。');
   for (const input of ['', '   ', null, 'English only', '中'.repeat(MAX_REGIONAL_CHARS + 1)]) assert.throws(() => validateRegionalInput(input, targets));
   for (const selection of [[], null, ['en-gb', 'en-gb'], ['en-ca'], [1], ['__proto__']]) assert.throws(() => validateRegionalInput(text, selection));
+});
+
+test('regional targets have the exact display order and explicit four-item Chinese and English groups', () => {
+  assert.deepEqual(REGIONAL_TARGETS.map(target => target.label), [
+    '香港繁体普通话', '香港繁体粤语', '台湾繁体国语', '新加坡简体中文',
+    '新加坡英文', '新加坡Singlish', '英式英文', '美式英文',
+  ]);
+  assert.deepEqual(REGIONAL_TARGETS.filter(target => target.group === 'chinese').map(target => target.id),
+    ['hk-mandarin', 'hk-cantonese', 'tw-mandarin', 'sg-chinese']);
+  assert.deepEqual(REGIONAL_TARGETS.filter(target => target.group === 'english').map(target => target.id),
+    ['sg-english', 'sg-singlish', 'en-gb', 'en-us']);
+  assert.equal(validateRegionalInput(text, REGIONAL_TARGETS.map(target => target.id)), text);
+});
+
+test('Singlish uses its own English-based prompt and is requested and returned independently', async () => {
+  const standard = regionalPrompt(['sg-english']);
+  const singlish = regionalPrompt(['sg-singlish']);
+  assert.match(standard, /standard Singapore English/);
+  assert.match(standard, /Do not default to Singlish/);
+  assert.ok(!standard.includes('sg-singlish'));
+  assert.match(singlish, /Singapore Colloquial English \(Singlish\)/);
+  assert.match(singlish, /Keep the output English-based/);
+  assert.match(singlish, /never mechanically/);
+  assert.ok(!singlish.includes('Do not default to Singlish'));
+  const requested = ['sg-english', 'sg-singlish'];
+  const seen = [];
+  const result = await convertRegionalWithProvider(options({ targets: requested }), async (url, request) => {
+    const payload = JSON.parse(request.body);
+    const target = JSON.parse(payload.messages[1].content).targets[0];
+    seen.push(target);
+    assert.equal(payload.messages[0].content, regionalPrompt([target]));
+    return completion([{ target, text: target === 'sg-singlish' ? 'Take the lift to level three, can?' : 'Please take the lift to the third floor.' }]);
+  });
+  assert.deepEqual(seen, requested);
+  assert.deepEqual(result.variants.map(variant => variant.target), requested);
+  assert.notEqual(result.variants[0].text, result.variants[1].text);
 });
 
 test('regional prompt separates Cantonese, standard written HK Chinese, Taiwan and Singapore varieties', () => {

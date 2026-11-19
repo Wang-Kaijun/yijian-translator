@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { translateWithProvider, fetchModels } from '../src/api.mjs';
+import { translateWithProvider, fetchModels, fetchModelCatalog } from '../src/api.mjs';
+import { sortModelIds } from '../src/model-catalog.mjs';
 import { PROVIDERS, validateExternalProvider } from '../providers.mjs';
 const items = [{ id: 'a', text: 'Hello' }];
 const translations = [{ id: 'a', text: '你好' }];
@@ -81,4 +82,23 @@ test('OpenAI model discovery uses its pinned endpoint and only its own key', asy
   for (const baseUrl of ['https://api.openai.com/other', 'https://api.openai.com.evil.example/v1']) {
     await assert.rejects(fetchModels({ ...request('openai').provider, baseUrl }, undefined, () => assert.fail('No request allowed')));
   }
+});
+
+test('model choices always sort by name without changing the original catalog', async () => {
+  const data = [
+    { id: 'Zulu', created: 1770000000 },
+    { id: 'Model-10', created: 1790000000, updated_at: '2026-01-02T00:00:00Z' },
+    { id: 'model-2', updated_at: 'invalid', modified_at: '1780000000000' },
+    { id: 'Alpha', created: 1790000000, updated_at: 0 },
+    { id: 'Model-10', updatedAt: 1780000000 },
+    { id: 'Alpha\n', updated_at: 1890000000 },
+    { id: 'no-date', updatedAt: 'invalid' },
+    { id: 'constructor' },
+  ];
+  const { models, modelTimes } = await fetchModelCatalog(request('openai').provider, undefined, async () => Response.json({ data }));
+  assert.deepEqual(models, ['Zulu', 'Model-10', 'model-2', 'Alpha', 'no-date', 'constructor']);
+  assert.deepEqual(modelTimes, { Zulu: 1770000000000, 'Model-10': 1780000000000, 'model-2': 1780000000000, Alpha: 1790000000000 });
+  assert.deepEqual(sortModelIds(models), ['Alpha', 'constructor', 'model-2', 'Model-10', 'no-date', 'Zulu']);
+  assert.deepEqual(sortModelIds(models, 'newest', modelTimes), ['Alpha', 'constructor', 'model-2', 'Model-10', 'no-date', 'Zulu']);
+  assert.deepEqual(models, ['Zulu', 'Model-10', 'model-2', 'Alpha', 'no-date', 'constructor']);
 });

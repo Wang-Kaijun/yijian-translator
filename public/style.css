@@ -70,10 +70,11 @@
 /* Regional targets remain visible above the source and independent result cards. */
 .regional-target-fieldset{min-width:0;border:0;border-bottom:1px solid #dfe5dc;margin:0;padding:20px 24px 24px}
 .regional-target-fieldset legend{padding:20px 0 0;font-size:14px;font-weight:600}
-.regional-target-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 15px}
+.regional-target-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin:0 0 15px}
 .regional-target-toolbar p{font-size:11px;line-height:1.8;color:#7f9279;margin:0}
-.regional-target-actions{display:flex;align-items:center;gap:14px;flex-shrink:0;font-size:11px;color:#7f9279}
-.regional-target-grid{display:grid;grid-template-columns:repeat(7,minmax(max-content,1fr));gap:8px;overflow-x:auto;padding:3px;scrollbar-width:thin}
+.regional-target-actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px;font-size:11px;color:#7f9279}
+.regional-target-actions button,.regional-target-actions span{white-space:nowrap}
+.regional-target-grid{display:grid;grid-template-columns:repeat(8,minmax(max-content,1fr));gap:8px;overflow-x:auto;padding:3px;scrollbar-width:thin}
 .regional-target{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;padding:12px 10px;border:1px solid #dfe5dc;border-radius:9px;background:#f8faf5;cursor:pointer;white-space:nowrap}
 .regional-target:has(input:checked){border-color:#90b49b;background:#eef5eb}
 .regional-target:has(input:focus-visible){outline:2px solid #5e9274;outline-offset:2px}

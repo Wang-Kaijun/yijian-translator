@@ -1,19 +1,30 @@
 import { setupConfigTransfer } from './config-transfer-ui.mjs';
 import { PROVIDERS as presets, validateExternalProvider, isLocalProvider, modelPriceLabel, PRICING_SOURCES } from '../providers.mjs';
-import { translateWithProvider, fetchModels } from './api.mjs';
-import { cleanModels } from './sites.mjs';
+import { translateWithProvider, fetchModelCatalog } from './api.mjs';
+import { cleanModels, sortModelIds } from './model-catalog.mjs';
 
 export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWorkspace, toast }) {
   const $ = id => document.getElementById(id);
   const names = { translation: '翻译', writing: '语法与润色', declaudish: 'De-Claudish', regional: '地区表达转换', global: '全局' };
-  let scope = 'translation', controller = null, workspace = 'translation', editorModels = [];
+  let scope = 'translation', controller = null, workspace = 'translation';
+  let editorCatalog = { models: [] };
   const option = (value, text) => { const el = document.createElement('option'); el.value = value; el.textContent = text; return el; };
   const manualModel = '__manual_model__';
-  function modelChoices(id, values, current = $(id).value) {
-    const list = cleanModels([current, ...values]);
+  function renderModelChoices({ select, list, type }, selected) {
+    const ordered = sortModelIds(list);
+    const choices = ordered.map(value => {
+      const price = modelPriceLabel(type, value);
+      return option(value, price ? `${value} — ${price}` : value);
+    });
+    select.replaceChildren(option('', list.length ? '请选择模型' : '暂无模型列表，请获取列表或手动输入'), ...choices, option(manualModel, '手动输入模型 ID…'));
+    select.value = selected;
+  }
+  function modelChoices(id, { models }, current = $(id).value) {
+    const list = cleanModels([current, ...models]);
     const select = $(id + 'Choice');
-    select.replaceChildren(option('', list.length ? '请选择模型' : '暂无模型列表，请获取列表或手动输入'), ...list.map(value => { const type = id === 'linkedModel' ? selectedSite()?.type : $('providerType').value; const price = modelPriceLabel(type, value); return option(value, price ? `${value} — ${price}` : value); }), option(manualModel, '手动输入模型 ID…'));
-    select.value = current || '';
+    const type = id === 'linkedModel' ? selectedSite()?.type : $('providerType').value;
+    const picker = { select, list, type };
+    renderModelChoices(picker, current || '');
     $(id).value = current || ''; $(id).hidden = true;
     if (id === 'externalModel') $('modelListStatus').textContent = list.length ? `下拉菜单中有 ${list.length} 个模型，点击选择` : '获取后直接在下方选择，无需复制粘贴';
   }
@@ -25,7 +36,6 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
       if (value === manualModel) $(id).focus();
     });
   }
-  const models = (id, values) => modelChoices(id === 'linkedModels' ? 'linkedModel' : 'externalModel', values);
   const error = e => { $('settingsStatus').textContent = e.message; $('settingsStatus').classList.add('error'); };
 
   function refresh() {
@@ -61,7 +71,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     $('providerType').value = type;
     $('externalFields').hidden = type === 'localai';
     $('localSettingsNote').hidden = type !== 'localai'; $('localModelField').hidden = type !== 'localai';
-    modelChoices('localSettingsModel', [], type === 'localai' ? config.model : '');
+    modelChoices('localSettingsModel', { models: [] }, type === 'localai' ? config.model : '');
     $('externalUrl').value = config.baseUrl || ''; $('externalUrl').readOnly = !['local', 'custom'].includes(type);
     $('apiAddressHint').textContent = ['local', 'custom'].includes(type) ? '可直接修改地址。更改后请重新填写密钥并选择模型，再应用设置。' : '内置服务商的官方地址不可修改。如需其他地址，请点击「新建服务商」。';
     $('externalModel').value = config.model || ''; $('externalKey').value = config.apiKey || '';
@@ -73,7 +83,8 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     $('getKey').hidden = !presets[type]?.keyUrl;
     if (presets[type]?.keyUrl) $('getKey').href = presets[type].keyUrl;
     const list = config.models || presets[type]?.models || [];
-    editorModels = cleanModels([config.model, ...list]); models('modelSuggestions', editorModels);
+    editorCatalog = { models: cleanModels([config.model, ...list]), modelTimes: config.modelTimes };
+    modelChoices('externalModel', editorCatalog);
   }
   const builtin = type => Object.hasOwn(presets, type) && !['custom', 'local'].includes(type);
   function selectedSite() {
@@ -107,7 +118,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     if (linked) {
       const binding = profiles.binding(scope);
       $('linkedModel').value = binding?.siteId === site.id ? binding.model : site.model;
-      models('linkedModels', site.models);
+      modelChoices('linkedModel', site);
       $('linkedSiteSummary').textContent = `${site.baseUrl} · ${site.apiKey ? '已配置共享密钥' : isLocalProvider(site) ? '未设置密钥（无鉴权服务可用）' : '需要在全局模型页补充密钥'}。此处只选择模型，修改站点会同步到所有引用它的功能。`;
     } else {
       const type = selected.startsWith('preset:') ? selected.slice(7) : selected === 'localai' ? 'localai' : null;
@@ -199,7 +210,9 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
     fields(type === 'localai' ? { type, model: profiles.initial(scope, type).model } : { type, ...presets[type], apiKey: '' });
   });
   $('externalUrl').addEventListener('input', () => {
-    $('externalKey').value = ''; $('rememberKey').checked = false; editorModels = []; modelChoices('externalModel', [], '');
+    $('externalKey').value = ''; $('rememberKey').checked = false;
+    editorCatalog = { models: [] };
+    modelChoices('externalModel', editorCatalog, '');
     const local = endpointHint();
     $('settingsStatus').textContent = local ? '地址已更改；无鉴权服务可直接获取模型列表，需要鉴权时请填写此地址的密钥。' : '地址已更改；请填写此地址的密钥并重新获取模型列表。';
   });
@@ -254,7 +267,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
         else {
           const config = read();
           if (scope === 'global' && config.type !== 'localai') {
-            const id = profiles.sites.save(selectedSite()?.id, config, $('siteName').value, editorModels, $('rememberKey').checked);
+            const id = profiles.sites.save(selectedSite()?.id, config, $('siteName').value, editorCatalog.models, $('rememberKey').checked, editorCatalog.modelTimes);
             profiles.bind('global', id, config.model);
           } else profiles.save(scope, config, $('rememberKey').checked);
         }
@@ -274,11 +287,11 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
       const config = read(listOnly); controller = request; syncBusy();
       $('settingsStatus').classList.remove('error'); $('settingsStatus').textContent = listOnly ? '正在获取此站点的模型列表…' : '正在用固定示例测试接口…';
       if (listOnly) {
-        const ids = await fetchModels(config, request.signal);
+        const catalog = await fetchModelCatalog(config, request.signal);
         if (request.signal.aborted) return;
-        editorModels = ids; models('modelSuggestions', ids);
-        if (!$('externalModel').value) modelChoices('externalModel', ids, ids[0]);
-        $('settingsStatus').textContent = `已读取 ${ids.length} 个模型，请在「选择模型」下拉菜单中选择，再应用设置。`;
+        editorCatalog = catalog;
+        modelChoices('externalModel', catalog, $('externalModel').value || catalog.models[0]);
+        $('settingsStatus').textContent = `已读取 ${catalog.models.length} 个模型，请在「选择模型」下拉菜单中选择，再应用设置。`;
       } else {
         await translateWithProvider({ provider: config, model: config.model, target: 'zh', items: [{ id: 'test', text: 'Hello.' }], signal: request.signal, allowLocal: !staticApp });
         if (!request.signal.aborted) $('settingsStatus').textContent = '接口可用，示例翻译验证通过。';

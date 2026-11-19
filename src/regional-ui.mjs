@@ -22,13 +22,20 @@ export function setupRegional({ getProvider, allowLocal, openSettings, configure
     return input;
   });
   const selected = () => choices.filter(input => input.checked).map(input => input.value);
+  const targetGroups = [
+    ['selectAllRegional', REGIONAL_TARGETS.map(target => target.id)],
+    ['selectChineseRegional', REGIONAL_TARGETS.filter(target => target.group === 'chinese').map(target => target.id)],
+    ['selectEnglishRegional', REGIONAL_TARGETS.filter(target => target.group === 'english').map(target => target.id)],
+    ['clearRegionalTargets', []],
+  ];
   function sync() {
     const count = selected().length, busy = Boolean(controller);
     $('regionalCount').textContent = `${$('regionalSource').value.length.toLocaleString()} / ${MAX_REGIONAL_CHARS.toLocaleString()} 字符`;
     $('regionalTargetCount').textContent = `已选 ${count} / ${REGIONAL_TARGETS.length}`;
     $('runRegional').disabled = busy || !count || !$('regionalSource').value.trim();
-    $('selectAllRegional').disabled = busy || count === choices.length;
-    $('clearRegionalTargets').disabled = busy || count === 0;
+    for (const [id, targets] of targetGroups) {
+      $(id).disabled = busy || choices.every(input => input.checked === targets.includes(input.value));
+    }
     for (const input of choices) input.disabled = busy;
   }
   function reset() {
@@ -95,8 +102,12 @@ export function setupRegional({ getProvider, allowLocal, openSettings, configure
   }
   function targetsChanged() { reset(); status(selected().length ? '目标已更新，准备转换。' : '请至少勾选一种目标表达。'); }
   choices.forEach(input => input.addEventListener('change', targetsChanged));
-  $('selectAllRegional').addEventListener('click', () => { choices.forEach(input => { input.checked = true; }); targetsChanged(); });
-  $('clearRegionalTargets').addEventListener('click', () => { choices.forEach(input => { input.checked = false; }); targetsChanged(); });
+  for (const [id, targets] of targetGroups) {
+    $(id).addEventListener('click', () => {
+      choices.forEach(input => { input.checked = targets.includes(input.value); });
+      targetsChanged();
+    });
+  }
   $('regionalSource').addEventListener('input', () => { reset(); status('原文已更新，准备转换。'); });
   $('clearRegional').addEventListener('click', () => { $('regionalSource').value = ''; reset(); status('已清空原文与结果。'); $('regionalSource').focus(); });
   $('regionalSample').addEventListener('click', () => {

@@ -35,6 +35,25 @@ test('regional selections round trip and older backups preserve existing regiona
   const invalid = sample(); invalid.selections.regional = { siteId: 'missing', model: 'b', useGlobal: false };
   assert.throws(() => parseConfig(JSON.stringify(invalid)), /功能引用/);
 });
+
+test('model times survive saving, reload and backup with older configurations still supported', () => {
+  const saved = storage();
+  const profiles = createProfiles(saved, '/', 'modelscope');
+  const { sites: [entry] } = sample();
+  const time = 1780000000000;
+  const id = profiles.sites.save(entry.id, entry, entry.label, entry.models, false, { a: time, b: 'invalid', other: time });
+  const reloaded = createProfiles(saved, '/', 'modelscope');
+  assert.deepEqual(reloaded.sites.read(id).modelTimes, { a: time });
+  reloaded.sites.list()[0].modelTimes.a = 0;
+  const backup = exportConfig(reloaded);
+  assert.deepEqual(backup.sites.find(site => site.id === id).modelTimes, { a: time });
+
+  const restored = createProfiles(storage(), '/', 'modelscope');
+  restored.importConfig(backup);
+  assert.deepEqual(restored.sites.read(id).modelTimes, { a: time });
+  restored.importConfig(sample());
+  assert.deepEqual(restored.sites.read(id).modelTimes, {});
+});
 test('import endpoint change never inherits old secret; same endpoint without key preserves it',()=>{
  const p=createProfiles(storage(),'/','modelscope'),data=sample();data.sites[0].apiKey='old-secret';p.importConfig(data,{remember:true});delete data.sites[0].apiKey;p.importConfig(data);assert.equal(p.sites.read('local').apiKey,'old-secret');
  data.sites[0].baseUrl='http://10.0.0.8/v1';p.importConfig(data);assert.equal(p.sites.read('local').apiKey,'');
