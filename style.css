@@ -62,15 +62,6 @@
 
 /* Keep model selection visibly distinct from manual ID entry. */
 .form-field select[id$="ModelChoice"],.form-field #localSettingsModelChoice{appearance:auto;min-height:44px;width:100%;min-width:0;padding-right:12px}
-#modelSortField{gap:4px;margin:12px 0 6px}
-#modelSortField:not([hidden])+.form-field{margin-top:6px}
-.model-sort-row,.model-sort{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-.model-sort{gap:5px}
-.model-sort .secondary-button{min-height:30px;padding:4px 9px;font-size:12px;line-height:1.4;white-space:nowrap}
-.model-sort .secondary-button[aria-pressed=true]{border-color:#adc5a5;background:#e1eddd;color:#34523a}
-.model-sort button:focus-visible{outline:2px solid #66805a;outline-offset:2px}
-[data-theme=dark] .model-sort .secondary-button[aria-pressed=true]{border-color:#69865f;background:#3a5335;color:#deefd5}
-[data-theme=dark] .model-sort button:focus-visible{outline-color:#b8d4ad}
 
 .config-transfer{border-top:1px solid #93a58c44;margin-top:24px;padding-top:24px}.config-transfer h3{font-size:14px}.config-transfer .test-row{flex-wrap:wrap;gap:10px}.config-transfer input:not([type=checkbox]){width:100%;min-width:0}.transfer-check{display:flex;gap:8px;align-items:flex-start;font-size:12px;margin:12px 0;line-height:1.6}.config-transfer details{margin-top:18px}.config-transfer ul{padding-left:20px;max-height:240px;overflow:auto;overflow-wrap:anywhere}.config-transfer summary{cursor:pointer}.config-transfer .form-field{margin-top:14px}#addProvider{margin-bottom:16px}#siteActions{margin-top:12px}
 
@@ -79,10 +70,11 @@
 /* Regional targets remain visible above the source and independent result cards. */
 .regional-target-fieldset{min-width:0;border:0;border-bottom:1px solid #dfe5dc;margin:0;padding:20px 24px 24px}
 .regional-target-fieldset legend{padding:20px 0 0;font-size:14px;font-weight:600}
-.regional-target-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 15px}
+.regional-target-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin:0 0 15px}
 .regional-target-toolbar p{font-size:11px;line-height:1.8;color:#7f9279;margin:0}
-.regional-target-actions{display:flex;align-items:center;gap:14px;flex-shrink:0;font-size:11px;color:#7f9279}
-.regional-target-grid{display:grid;grid-template-columns:repeat(7,minmax(max-content,1fr));gap:8px;overflow-x:auto;padding:3px;scrollbar-width:thin}
+.regional-target-actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px;font-size:11px;color:#7f9279}
+.regional-target-actions button,.regional-target-actions span{white-space:nowrap}
+.regional-target-grid{display:grid;grid-template-columns:repeat(8,minmax(max-content,1fr));gap:8px;overflow-x:auto;padding:3px;scrollbar-width:thin}
 .regional-target{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;padding:12px 10px;border:1px solid #dfe5dc;border-radius:9px;background:#f8faf5;cursor:pointer;white-space:nowrap}
 .regional-target:has(input:checked){border-color:#90b49b;background:#eef5eb}
 .regional-target:has(input:focus-visible){outline:2px solid #5e9274;outline-offset:2px}
