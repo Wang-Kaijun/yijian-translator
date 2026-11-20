@@ -4,12 +4,18 @@ import { writingPrompt, validateWritingInput, parseWritingCompletion } from '../
 import { declaudishPrompt, validateDeclaudishInput, parseDeclaudishOutput } from '../declaudish.mjs';
 import { REGIONAL_TARGETS, regionalPrompt, validateRegionalInput, parseRegionalCompletion } from '../regional.mjs';
 import { readModelCatalog } from './model-catalog.mjs';
+import { reflowPrompt, validateReflowInput, parseReflowCompletion } from '../reflow.mjs';
 
 function failure(message, retryable = false, retryAfter = 0) {
   return Object.assign(new Error(message), { retryable, retryAfter });
 }
 
 export function translateWithProvider(options, fetchImpl = fetch) {
+  return requestWithProvider(options, fetchImpl);
+}
+
+export function reflowWithProvider(options, fetchImpl = fetch) {
+  validateReflowInput(options.layout);
   return requestWithProvider(options, fetchImpl);
 }
 
@@ -43,7 +49,7 @@ export async function convertRegionalWithProvider(options, fetchImpl = fetch) {
   return { variants };
 }
 
-async function requestWithProvider({ provider, model, target, targets, items, text, writing = false, declaudish = false, regional = false, signal, allowLocal = true }, fetchImpl) {
+async function requestWithProvider({ provider, model, target, targets, items, text, layout, writing = false, declaudish = false, regional = false, signal, allowLocal = true }, fetchImpl) {
   const local = provider?.type === 'localai';
   if (local && !allowLocal) throw failure('在线版请使用外部 API；LocalAI 可在局域网版使用。');
   const config = local ? null : validateExternalProvider(provider, model);
@@ -54,15 +60,16 @@ async function requestWithProvider({ provider, model, target, targets, items, te
   const timer = setTimeout(abort, 180000);
   try {
     // External API keys never go to our server or GitHub. LocalAI's gateway receives text only.
-    const input = regional ? { text, targets } : writing || declaudish ? { text } : { items: items?.map(({ id, text }) => ({ id, text })) };
-    const payload = local ? { provider: { type: 'localai' }, model, ...(regional ? { text, targets } : writing || declaudish ? { text } : { target, items }) } : {
+    const input = layout ?? (regional ? { text, targets } : writing || declaudish ? { text } : { items: items?.map(({ id, text }) => ({ id, text })) });
+    const payload = local ? { provider: { type: 'localai' }, model, ...(layout ? { layout } : { ...input, target }) } : {
       model: config.model, temperature: 0.15, ...generationOptions(config.type, config.model), stream: false,
       messages: [
-        { role: 'system', content: regional ? regionalPrompt(targets) : declaudish ? declaudishPrompt : writing ? writingPrompt : translationPrompt(target) },
+        { role: 'system', content: layout ? reflowPrompt : regional ? regionalPrompt(targets) : declaudish ? declaudishPrompt : writing ? writingPrompt : translationPrompt(target) },
         { role: 'user', content: JSON.stringify(input) },
       ],
     };
-    const response = await fetchImpl(local ? (regional ? './api/regional' : declaudish ? './api/declaudish' : writing ? './api/review' : './api/translate') : `${config.baseUrl}/chat/completions`, {
+    const endpoint = layout ? 'reflow' : regional ? 'regional' : declaudish ? 'declaudish' : writing ? 'review' : 'translate';
+    const response = await fetchImpl(local ? `./api/${endpoint}` : `${config.baseUrl}/chat/completions`, {
       method: 'POST', mode: local ? 'same-origin' : 'cors', credentials: 'omit', cache: 'no-store',
       redirect: 'error', referrerPolicy: 'no-referrer', signal: controller.signal,
       ...browserNetworkOptions(config?.baseUrl),
@@ -78,13 +85,15 @@ async function requestWithProvider({ provider, model, target, targets, items, te
     }
     let data;
     try { data = await response.json(); } catch { throw failure('接口未返回有效的 JSON，请检查 API 地址。'); }
+    if (local && layout) return parseReflowCompletion(JSON.stringify(data), layout);
     if (local) return regional ? parseRegionalCompletion(JSON.stringify(data), targets) : declaudish ? parseDeclaudishOutput(data.output) : writing ? parseWritingCompletion(JSON.stringify(data.review), text) : parseCompletion(JSON.stringify({ translations: data.translations }), items);
     const choice = data?.choices?.[0];
     if (choice?.finish_reason === 'length') throw new Error(regional ? '地区转换结果被截断，请缩短原文后重试。' : writing ? '模型输出被截断，请缩短英文内容或更换模型后重试。' : '模型输出被截断，请重试当前分段');
+    if (layout) return parseReflowCompletion(choice?.message?.content, layout);
     return regional ? parseRegionalCompletion(choice?.message?.content, targets) : declaudish ? parseDeclaudishOutput(choice?.message?.content) : writing ? parseWritingCompletion(choice?.message?.content, text) : parseCompletion(choice?.message?.content, items);
   } catch (error) {
     if (signal?.aborted) throw new DOMException('已停止', 'AbortError');
-    if (controller.signal.aborted) throw failure(regional ? '地区转换等待超时，请重试或缩短原文。' : writing ? '检查等待超时，请重试或缩短英文内容。' : '翻译等待超时，可继续未完成的分段', true);
+    if (controller.signal.aborted) throw failure(layout ? '整理原文等待超时，请重试。' : regional ? '地区转换等待超时，请重试或缩短原文。' : writing ? '检查等待超时，请重试或缩短英文内容。' : '翻译等待超时，可继续未完成的分段', true);
     if (error instanceof TypeError) throw failure('浏览器无法直连接口，请检查服务是否启动、网络地址、跨域设置（CORS）及浏览器的本地网络访问权限。');
     throw error;
   } finally {

@@ -13,7 +13,7 @@ test('LocalAI gateway validates writing input, uses server credentials and prese
     const chunks = []; for await (const chunk of req) chunks.push(chunk);
     const payload = JSON.parse(Buffer.concat(chunks)); requests.push({ payload, auth: req.headers.authorization });
     const input = JSON.parse(payload.messages[1].content);
-    const content = input.targets ? JSON.stringify({ variants: input.targets.map(target => ({ target, text: '請搭𨋢去三樓。' })) }) : payload.messages[0].content.includes('Preserve logical scope exactly') ? 'Only owners can merge.' : JSON.stringify(input.text ? review : { translations: [{ id: 'a', text: '你好。' }] });
+    const content = input.boundaries ? JSON.stringify({ space: [1], join: [], paragraph: [] }) : input.targets ? JSON.stringify({ variants: input.targets.map(target => ({ target, text: '請搭𨋢去三樓。' })) }) : payload.messages[0].content.includes('Preserve logical scope exactly') ? 'Only owners can merge.' : JSON.stringify(input.text ? review : { translations: [{ id: 'a', text: '你好。' }] });
     res.end(JSON.stringify({ choices: [{ message: { content }, finish_reason: 'stop' }] }));
   });
   await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve));
@@ -53,5 +53,12 @@ test('LocalAI gateway validates writing input, uses server credentials and prese
     response = await post('/api/regional', regional, { Origin: 'https://untrusted.example' }); assert.equal(response.status, 403);
     response = await post('/api/regional', regional, { 'Sec-Fetch-Site': 'cross-site' }); assert.equal(response.status, 403);
     assert.equal(requests.length, count);
+    const layout = { first: 'Hello', boundaries: [{ id: 1, gap: 'wrap', next: 'world.' }] };
+    response = await post('/api/reflow', { ...request, layout });
+    assert.equal(response.status, 200); assert.deepEqual(await response.json(), { space: [1], join: [], paragraph: [] });
+    assert.deepEqual(JSON.parse(requests.at(-1).payload.messages[1].content), layout);
+    assert.match(requests.at(-1).payload.messages[0].content, /Restore the layout/);
+    response = await post('/api/reflow', { ...request, layout: { ...layout, boundaries: [] } });
+    assert.equal(response.status, 400); assert.equal(requests.length, count + 1);
   } finally { child.kill(); await ended; await new Promise(resolve => upstream.close(resolve)); }
 });

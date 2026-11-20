@@ -1,17 +1,19 @@
 import { isLocalProvider } from '../providers.mjs';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { createPlan, acceptTranslations, renderPlan, pendingBatches, previewSource, detectDirection } from './translation.mjs';
+import { createPlan, acceptTranslations, renderPlan, pendingBatches, previewSource, detectDirection, reflowRanges } from './translation.mjs';
 import { setupModelSettings } from './model-settings.mjs';
 import { setupDeclaudish } from './declaudish-ui.mjs';
 import { createProfiles } from './profiles.mjs';
 import { setupWriting } from './writing-ui.mjs';
 import { setupRegional } from './regional-ui.mjs';
-import { translateWithProvider } from './api.mjs';
+import { translateWithProvider, reflowWithProvider } from './api.mjs';
+import { reflowSource } from '../reflow.mjs';
 
 const $ = id => document.getElementById(id);
 let mode = 'text', view = 'preview', filename = '', plan = null, planKey = '', output = '', busy = false, complete = false;
 let controller = null, startedAt = 0, toastTimer, previewTimer;
+let beforeReflow = null;
 const staticApp = typeof __STATIC_APP__ !== 'undefined' && __STATIC_APP__;
 let browserStorage; try { browserStorage = localStorage; } catch {}
 const appPath = new URL('.', location.href).pathname;
@@ -44,15 +46,18 @@ function languageLabels() {
   $('targetLanguage').textContent = source.trim() ? (target === 'zh' ? '简体中文' : '英文') : '等待原文';
   $('characterCount').textContent = `${source.length.toLocaleString()} 字符`;
   $('translate').disabled = busy || !source.trim();
+  $('reflow').disabled = $('translate').disabled;
 }
 
-function setBusy(value) {
+function setBusy(value, reflowing = false) {
   busy = value;
   document.body.classList.toggle('busy', value);
-  for (const id of ['source', 'direction', 'chooseFile', 'textMode', 'markdownMode', 'clear', 'sample', 'fileInput', 'settings']) $(id).disabled = value;
+  for (const id of ['source', 'direction', 'chooseFile', 'textMode', 'markdownMode', 'clear', 'sample', 'fileInput', 'settings', 'undoReflow']) $(id).disabled = value;
   $('stop').hidden = !value;
-  $('translateText').textContent = value ? '翻译中…' : plan && !complete && plan.completed.size ? '继续翻译' : '开始翻译';
+  $('translateText').textContent = value && !reflowing ? '翻译中…' : plan && !complete && plan.completed.size ? '继续翻译' : '开始翻译';
   $('translate').disabled = value || !$('source').value.trim();
+  $('reflow').disabled = $('translate').disabled;
+  $('reflow').textContent = reflowing ? '整理中…' : '智能换行和分段';
   $('copy').disabled = !(complete || plan?.completed.size) || value;
   $('download').disabled = !(complete || plan?.completed.size) || value;
   syncSettingsBusy();
@@ -139,10 +144,48 @@ async function translateBatch(items, signal) {
   throw lastError;
 }
 
+function sourceTaskReady() {
+  if (busy || !$('source').value.trim()) return false;
+  if (providerConfig.type !== 'localai' && !isLocalProvider(providerConfig) && !providerConfig.apiKey) { openEffectiveSettings('translation'); settingsError(new Error('请先填写你自己的 API Key。')); return false; }
+  if (new TextEncoder().encode($('source').value).length > MAX_BYTES) { status('内容超过 2 MB，请分成较小的文档。', true); return false; }
+  return true;
+}
+
+function clearReflowUndo() {
+  beforeReflow = null;
+  $('undoReflow').hidden = true;
+}
+
+async function reflow() {
+  if (!sourceTaskReady()) return;
+  const source = $('source').value;
+  const provider = providerConfig;
+  controller = new AbortController();
+  const signal = controller.signal;
+  let batch = 0;
+  setBusy(true, true);
+  try {
+    const formatted = await reflowSource(source, reflowRanges(source, mode), layout => {
+      status(`正在整理原文 · 第 ${++batch} 批…`);
+      return reflowWithProvider({ provider, model: provider.model, layout, signal, allowLocal: !staticApp });
+    }, signal);
+    signal.throwIfAborted();
+    if ($('source').value !== source) return;
+    if (source === formatted) { status('原文排版无需调整，可以开始翻译。'); return; }
+    beforeReflow = source;
+    $('source').value = formatted;
+    $('undoReflow').hidden = false;
+    resetOutput();
+    languageLabels();
+    status('原文已整理。可检查分段后开始翻译，或撤销整理。');
+  } catch (error) {
+    if (signal.aborted) status('已停止整理，原文已保留。');
+    else status(`整理失败，原文已保留。${error.message}`, true);
+  } finally { controller = null; setBusy(false); }
+}
+
 async function translate() {
-  if (busy || !$('source').value.trim()) return;
-  if (providerConfig.type !== 'localai' && !isLocalProvider(providerConfig) && !providerConfig.apiKey) { openEffectiveSettings('translation'); settingsError(new Error('请先填写你自己的 API Key。')); return; }
-  if (new TextEncoder().encode($('source').value).length > MAX_BYTES) { status('内容超过 2 MB，请分成较小的文档。', true); return; }
+  if (!sourceTaskReady()) return;
   const key = JSON.stringify([mode, $('direction').value, providerConfig.type, providerConfig.baseUrl, activeModel(), $('source').value]);
   try {
     if (!plan || planKey !== key || complete) { plan = createPlan($('source').value, mode, $('direction').value); planKey = key; }
@@ -175,7 +218,9 @@ async function readFile(file) {
   if (file.size > MAX_BYTES) { status('文件超过 2 MB，请分成较小的文档。', true); return; }
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
+    if (busy) return;
     const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+    clearReflowUndo();
     setMode(/\.txt$/i.test(file.name) ? 'text' : 'markdown'); filename = file.name; $('source').value = text;
     updateFileLabel();
     languageLabels(); status(`已在浏览器中读取 ${file.name} · 文件未上传`);
@@ -183,13 +228,19 @@ async function readFile(file) {
   $('fileInput').value = '';
 }
 
-$('source').addEventListener('input', () => { resetOutput(); clearTimeout(previewTimer); previewTimer = setTimeout(languageLabels, 200); status('原文已更新，准备翻译。'); });
+$('source').addEventListener('input', () => { clearReflowUndo(); resetOutput(); clearTimeout(previewTimer); previewTimer = setTimeout(languageLabels, 200); status('原文已更新，准备翻译。'); });
 for (const button of document.querySelectorAll('[data-mode]')) button.addEventListener('click', () => setMode(button.dataset.mode));
 $('direction').addEventListener('change', () => { resetOutput(); languageLabels(); });
 $('translate').addEventListener('click', translate);
+$('reflow').addEventListener('click', reflow);
+$('undoReflow').addEventListener('click', () => {
+  if (busy || beforeReflow === null) return;
+  $('source').value = beforeReflow;
+  clearReflowUndo(); resetOutput(); languageLabels(); status('已恢复整理前的原文。'); $('source').focus();
+});
 $('stop').addEventListener('click', () => controller?.abort());
-$('clear').addEventListener('click', () => { $('source').value = ''; filename = ''; updateFileLabel(); resetOutput(); languageLabels(); status('已清空。'); $('source').focus(); });
-$('sample').addEventListener('click', () => { $('source').value = mode === 'markdown' ? sampleMarkdown : sampleText; filename = ''; updateFileLabel(); resetOutput(); languageLabels(); status('示例已就绪，点击开始翻译。'); });
+$('clear').addEventListener('click', () => { $('source').value = ''; clearReflowUndo(); filename = ''; updateFileLabel(); resetOutput(); languageLabels(); status('已清空。'); $('source').focus(); });
+$('sample').addEventListener('click', () => { $('source').value = mode === 'markdown' ? sampleMarkdown : sampleText; clearReflowUndo(); filename = ''; updateFileLabel(); resetOutput(); languageLabels(); status('示例已就绪，点击开始翻译。'); });
 $('chooseFile').addEventListener('click', () => $('fileInput').click());
 $('fileInput').addEventListener('change', event => readFile(event.target.files?.[0]));
 for (const name of ['dragenter', 'dragover']) $('dropArea').addEventListener(name, event => { event.preventDefault(); if (!busy) $('dropArea').classList.add('dragging'); });

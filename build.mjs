@@ -12,7 +12,7 @@ if (pages) {
     .replace('<option value="localai">LocalAI · 局域网默认</option>', '')
     .replace('翻译引擎 · LocalAI', '翻译引擎 · 魔搭 ModelScope')
     .replace('连接引擎中', '填写 API Key')
-    .replace('仅待译文本经局域网发送至 LocalAI', '仅待译文本直接发送至所选模型服务商');
+    .replace('整理或翻译时，原文仅发送至 LocalAI（局域网）', '整理或翻译时，原文仅发送至所选模型服务商');
   await writeFile(`${out}/index.html`, html);
   for (const file of ['theme.js', 'style.css', 'favicon.svg']) await copyFile(`public/${file}`, `${out}/${file}`);
   await writeFile(`${out}/.nojekyll`, '');

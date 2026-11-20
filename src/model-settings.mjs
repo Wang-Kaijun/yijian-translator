@@ -45,7 +45,7 @@ export function setupModelSettings({ profiles, staticApp, isBusy, onChange, onWo
       $(model).textContent = config.model || '请设置模型';
     }
     const destination = c => c.type === 'localai' ? 'LocalAI（局域网）' : c.baseUrl ? new URL(c.baseUrl).hostname : '所选接口';
-    $('privacyDestination').textContent = '待译文本仅发送至 ' + destination(profiles.effective('translation'));
+    $('privacyDestination').textContent = '整理或翻译时，原文仅发送至 ' + destination(profiles.effective('translation'));
     $('writingDestination').textContent = '待检查英文仅发送至 ' + destination(profiles.effective('writing')) + '。本应用不保存英文内容或检查结果。';
     $('privacyRegionalDestination').textContent = '待转换文本仅发送至 ' + destination(profiles.effective('regional')) + '。本应用不保存原文或转换结果。';
     $('globalUsage').textContent = ['translation', 'writing', 'declaudish', 'regional'].map(s => names[s] + '：' + (profiles.isOverridden(s) ? '使用全局模型' : '独立选择模型')).join('；');

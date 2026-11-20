@@ -33,6 +33,20 @@ function parseDocument(source) {
   return tree;
 }
 
+export function* reflowRanges(source, mode) {
+  if (mode !== 'markdown') {
+    yield { start: 0, end: source.length };
+    return;
+  }
+  // Only top-level paragraph prose can be reflowed without disturbing Markdown structure.
+  for (const block of parseDocument(source).children) {
+    if (block.type !== 'paragraph') continue;
+    for (const node of block.children) {
+      if (node.type === 'text') yield { start: node.position.start.offset, end: node.position.end.offset };
+    }
+  }
+}
+
 // Split only between complete Unicode characters and complete protection tokens.
 export function splitMasked(text, limit = 2200) {
   const atoms = text.match(/⟦K\d+_\d+⟧|[^]/gu) || [];
