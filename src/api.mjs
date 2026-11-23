@@ -1,10 +1,10 @@
-import { validateExternalProvider, generationOptions, browserNetworkOptions } from '../providers.mjs';
+import { PROVIDERS, validateExternalProvider, generationOptions, browserNetworkOptions } from '../providers.mjs';
 import { translationPrompt, parseCompletion } from '../prompts.mjs';
 import { writingPrompt, validateWritingInput, parseWritingCompletion } from '../writing.mjs';
 import { declaudishPrompt, validateDeclaudishInput, parseDeclaudishOutput } from '../declaudish.mjs';
 import { REGIONAL_TARGETS, regionalPrompt, validateRegionalInput, parseRegionalCompletion } from '../regional.mjs';
 import { readModelCatalog } from './model-catalog.mjs';
-import { reflowPrompt, validateReflowInput, parseReflowCompletion } from '../reflow.mjs';
+import { reflowPrompt, orderedReflowPrompt, orderedReflowOutput, validateReflowInput, parseReflowCompletion, ReflowFormatError } from '../reflow.mjs';
 
 function failure(message, retryable = false, retryAfter = 0) {
   return Object.assign(new Error(message), { retryable, retryAfter });
@@ -14,9 +14,15 @@ export function translateWithProvider(options, fetchImpl = fetch) {
   return requestWithProvider(options, fetchImpl);
 }
 
-export function reflowWithProvider(options, fetchImpl = fetch) {
+export async function reflowWithProvider(options, fetchImpl = fetch) {
   validateReflowInput(options.layout);
-  return requestWithProvider(options, fetchImpl);
+  try {
+    return await requestWithProvider(options, fetchImpl);
+  } catch (error) {
+    if (!(error instanceof ReflowFormatError) || options.provider?.type === 'localai') throw error;
+    options.signal?.throwIfAborted();
+    return requestWithProvider(options, fetchImpl, error.message);
+  }
 }
 
 export function reviewWithProvider(options, fetchImpl = fetch) {
@@ -49,7 +55,7 @@ export async function convertRegionalWithProvider(options, fetchImpl = fetch) {
   return { variants };
 }
 
-async function requestWithProvider({ provider, model, target, targets, items, text, layout, writing = false, declaudish = false, regional = false, signal, allowLocal = true }, fetchImpl) {
+async function requestWithProvider({ provider, model, target, targets, items, text, layout, writing = false, declaudish = false, regional = false, signal, allowLocal = true }, fetchImpl, reflowFeedback) {
   const local = provider?.type === 'localai';
   if (local && !allowLocal) throw failure('在线版请使用外部 API；LocalAI 可在局域网版使用。');
   const config = local ? null : validateExternalProvider(provider, model);
@@ -60,11 +66,17 @@ async function requestWithProvider({ provider, model, target, targets, items, te
   const timer = setTimeout(abort, 180000);
   try {
     // External API keys never go to our server or GitHub. LocalAI's gateway receives text only.
-    const input = layout ?? (regional ? { text, targets } : writing || declaudish ? { text } : { items: items?.map(({ id, text }) => ({ id, text })) });
+    const deepseekLayout = layout && !local && new URL(config.baseUrl).origin === PROVIDERS.deepseek.baseUrl;
+    // DeepSeek can return blank content in JSON mode. Retry without that mode.
+    const layoutFormat = deepseekLayout ? (reflowFeedback ? 'ordered-text' : 'ordered-json') : undefined;
+    const layoutInput = layoutFormat ? { first: layout.first, boundaries: layout.boundaries.map(({ gap, next }) => ({ gap, next })) } : layout;
+    const layoutPrompt = layoutFormat ? `${orderedReflowPrompt}\n${orderedReflowOutput(layoutFormat, layout.boundaries.length)}` : reflowFeedback ? `${reflowPrompt}\n\nCorrect the previous reply using this validation feedback: ${reflowFeedback}` : reflowPrompt;
+    const input = layoutInput ?? (regional ? { text, targets } : writing || declaudish ? { text } : { items: items?.map(({ id, text }) => ({ id, text })) });
     const payload = local ? { provider: { type: 'localai' }, model, ...(layout ? { layout } : { ...input, target }) } : {
-      model: config.model, temperature: 0.15, ...generationOptions(config.type, config.model), stream: false,
+      model: config.model, temperature: 0.15, ...generationOptions(deepseekLayout ? 'deepseek' : config.type, config.model), stream: false,
+      ...(layoutFormat === 'ordered-json' ? { response_format: { type: 'json_object' } } : {}),
       messages: [
-        { role: 'system', content: layout ? reflowPrompt : regional ? regionalPrompt(targets) : declaudish ? declaudishPrompt : writing ? writingPrompt : translationPrompt(target) },
+        { role: 'system', content: layout ? layoutPrompt : regional ? regionalPrompt(targets) : declaudish ? declaudishPrompt : writing ? writingPrompt : translationPrompt(target) },
         { role: 'user', content: JSON.stringify(input) },
       ],
     };
@@ -88,8 +100,9 @@ async function requestWithProvider({ provider, model, target, targets, items, te
     if (local && layout) return parseReflowCompletion(JSON.stringify(data), layout);
     if (local) return regional ? parseRegionalCompletion(JSON.stringify(data), targets) : declaudish ? parseDeclaudishOutput(data.output) : writing ? parseWritingCompletion(JSON.stringify(data.review), text) : parseCompletion(JSON.stringify({ translations: data.translations }), items);
     const choice = data?.choices?.[0];
+    if (deepseekLayout && choice?.finish_reason === 'length') throw new ReflowFormatError('模型返回的排版指令被截断。');
     if (choice?.finish_reason === 'length') throw new Error(regional ? '地区转换结果被截断，请缩短原文后重试。' : writing ? '模型输出被截断，请缩短英文内容或更换模型后重试。' : '模型输出被截断，请重试当前分段');
-    if (layout) return parseReflowCompletion(choice?.message?.content, layout);
+    if (layout) return parseReflowCompletion(choice?.message?.content, layout, layoutFormat);
     return regional ? parseRegionalCompletion(choice?.message?.content, targets) : declaudish ? parseDeclaudishOutput(choice?.message?.content) : writing ? parseWritingCompletion(choice?.message?.content, text) : parseCompletion(choice?.message?.content, items);
   } catch (error) {
     if (signal?.aborted) throw new DOMException('已停止', 'AbortError');
